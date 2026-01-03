@@ -1,8 +1,8 @@
 # 7ay Proof of Presence (PoP)
 ## Conceptual System Model
 **Derived from:** Presence Specification v0.1  
-**Status:** Draft  
-**Scope:** Conceptual / Protocol Model
+**Status:** Draft (MVP)  
+**Scope:** Conceptual / Protocol Model (MVP Profile)
 
 ---
 
@@ -17,6 +17,8 @@ It translates the formal rules defined in `presence.md` into:
 - state behavior
 
 This model is implementation-agnostic and precedes any smart contract or node logic.
+
+This model reflects the MVP implementation on the 7aychain. Advanced protocol roles such as validators, slashing, and quorum are explicitly out of scope for this version.
 
 ---
 
@@ -38,10 +40,7 @@ The protocol does not impose identity semantics beyond uniqueness.
 
 An actor:
 - MAY declare presence
-- MAY act as a validator
-- MAY be penalized by the protocol
-
-An actor MAY assume multiple roles simultaneously.
+- MAY assume additional roles in future protocol versions
 
 ---
 
@@ -61,6 +60,8 @@ An **Epoch** is a discrete, ordered temporal window during which
 presence declarations and validations occur.
 
 Epochs provide temporal determinism to the protocol.
+
+In the MVP, an Epoch is represented as an event-specific temporal window and is not a global on-chain epoch system.
 
 ---
 
@@ -114,68 +115,13 @@ A presence MAY exist in one of the following states:
 - Expired
 - Slashed
 
----
-
-### Constraints
-
-- Presence is non-transferable.
-- A finalized presence is immutable.
-- A slashed presence is irreversible.
+Note: In the MVP on-chain implementation, only the `Finalized` state is persisted on-chain; all other states are conceptual or off-chain.
 
 ---
 
-## 2.4 Validator
+## 2.4 Future Protocol Extensions (Non-MVP)
 
-### Conceptual Definition
-
-A **Validator** is an actor authorized by the protocol
-to validate presence declarations.
-
-Validation authority is protocol-defined and deterministic.
-
----
-
-### Capabilities
-
-A validator:
-- MAY validate declared presences
-- MAY be penalized for invalid behavior
-
----
-
-### Constraints
-
-- A penalized validator MUST NOT participate in validation.
-- Validation outcomes MUST be deterministic.
-- Validation MAY require quorum as defined by the protocol.
-
----
-
-## 2.5 Slashing
-
-### Conceptual Definition
-
-**Slashing** is the protocol-level mechanism
-for penalizing invalid or malicious behavior.
-
-Slashing is enforced exclusively by the protocol.
-
----
-
-### Causes
-
-Slashing MAY occur due to:
-- Multiple presence declarations in the same epoch
-- Invalid validation behavior
-- Violation of protocol invariants
-
----
-
-### Properties
-
-- Slashing is irreversible.
-- Slashing outcomes are deterministic.
-- Slashing rules are protocol-defined.
+Validator roles, quorum-based validation, and slashing mechanisms are part of future versions of the protocol and are intentionally excluded from the MVP to preserve determinism and simplicity.
 
 ---
 
@@ -183,6 +129,8 @@ Slashing MAY occur due to:
 
 A presence MUST follow the lifecycle defined below.
 No undefined transitions are allowed.
+
+Lifecycle transitions are conceptual; the MVP contract enforces only final presence acceptance or rejection.
 
 ---
 
@@ -229,13 +177,18 @@ The presence was invalidated due to protocol violations.
 The following invariants apply at the conceptual model level
 and MUST hold for all implementations:
 
-1. An actor MUST NOT have more than one active presence per epoch.
-2. Presence state transitions MUST follow the defined lifecycle.
-3. A finalized presence MUST NOT transition to another state.
-4. A slashed presence MUST NOT become valid.
-5. An expired presence MUST NOT be validated retroactively.
-6. Epochs MUST be finalized in strict order.
-7. All protocol decisions MUST be deterministic.
+### MVP Invariants
+
+1. An actor MUST NOT have more than one active presence per epoch.  
+2. Presence state transitions MUST follow the defined lifecycle.  
+3. A finalized presence MUST NOT transition to another state.  
+7. All protocol decisions MUST be deterministic.  
+
+### Future Invariants (Non-MVP)
+
+4. A slashed presence MUST NOT become valid.  
+5. An expired presence MUST NOT be validated retroactively.  
+6. Epochs MUST be finalized in strict order.  
 
 ---
 
@@ -261,4 +214,4 @@ This conceptual model:
 - Informs invariant testing
 - Serves as reference for node and SDK implementations
 
-Any implementation deviating from this model is non-compliant.
+This model is designed to evolve alongside the 7ay blockchain as Presence expands from MVP to a full protocol.

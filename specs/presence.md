@@ -1,8 +1,8 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Presence
 **Version:** v0.1  
-**Status:** Draft  
-**Scope:** Protocol-level (canonical)
+**Status:** Draft (MVP)  
+**Scope:** Protocol-level (canonical, MVP profile)
 
 ---
 
@@ -16,6 +16,8 @@ This specification defines the canonical rules for presence declaration,
 validation, finalization, and invalidation.
 
 Implementations MUST follow this specification to be considered compliant.
+
+Validator roles, slashing, quorum, and multi-party validation are explicitly out of scope for the MVP.
 
 ---
 
@@ -40,10 +42,9 @@ Presence is:
 An **Actor** is an identifiable participant in the protocol.
 
 An actor:
-- Can declare presence
-- Can be validated
-- Can be penalized
-- Cannot have multiple simultaneous presences in the same context
+- MAY declare presence
+- MUST be uniquely identifiable
+- MUST NOT have more than one finalized presence per epoch
 
 The protocol does not assume actor identity semantics beyond uniqueness.
 
@@ -59,9 +60,11 @@ Epochs:
 - Are finalized sequentially
 - Cannot overlap
 
+In the MVP, an Epoch represents an event-scoped temporal window and does not imply network-level consensus epochs.
+
 ---
 
-## 3. Actors in the Protocol
+## 3. Actors and Roles (MVP)
 
 The protocol defines the following logical actors:
 
@@ -69,13 +72,7 @@ The protocol defines the following logical actors:
 
 A participant is an actor who declares presence.
 
-### 3.2 Validator
-
-A validator is an actor authorized by the protocol to validate presence claims.
-
-Validation rules are protocol-defined and deterministic.
-
-### 3.3 Protocol
+### 3.2 Protocol
 
 The protocol itself acts as an impartial arbitrator enforcing all invariants.
 
@@ -86,9 +83,14 @@ The protocol itself acts as an impartial arbitrator enforcing all invariants.
 A presence claim MUST follow this lifecycle:
 No transitions outside this flow are valid.
 
+Lifecycle stages are conceptual; only final acceptance or rejection is enforced on-chain in the MVP.
+
 ---
 
 ## 5. Presence States
+
+Note: In the MVP on-chain implementation, only the Finalized state is persisted on-chain.
+All other states are conceptual or off-chain and are included for protocol completeness.
 
 ### 5.1 None
 
@@ -148,15 +150,11 @@ Slashed presences:
 
 The protocol MUST emit canonical events for each lifecycle transition.
 
-At minimum, the following events are defined:
+At minimum, the following event is defined:
 
-- PresenceDeclared
-- PresenceValidated
 - PresenceFinalized
-- PresenceExpired
-- PresenceSlashed
 
-Event semantics MUST remain stable across implementations.
+Other lifecycle events are reserved for future protocol versions.
 
 ---
 
@@ -164,12 +162,17 @@ Event semantics MUST remain stable across implementations.
 
 The following invariants MUST NEVER be violated:
 
-1. An actor MUST NOT have more than one active presence per epoch.
-2. A finalized presence MUST NOT be reverted.
-3. A slashed presence MUST NOT become valid again.
-4. An expired presence MUST NOT be validated retroactively.
-5. Epochs MUST be finalized in order.
+### MVP Invariants
+
+1. An actor MUST NOT have more than one active presence per epoch.  
+2. A finalized presence MUST NOT be reverted.  
 6. Presence state transitions MUST be deterministic.
+
+### Future Invariants (Non-MVP)
+
+3. A slashed presence MUST NOT become valid again.  
+4. An expired presence MUST NOT be validated retroactively.  
+5. Epochs MUST be finalized in order.
 
 Any implementation violating these invariants is non-compliant.
 
@@ -198,7 +201,5 @@ Future extensions:
 ## 10. Compliance
 
 An implementation is considered compliant if and only if:
-- All states behave as defined
-- All invariants hold
-- All events are emitted correctly
-- No undefined transitions exist
+- All MVP Invariants hold
+- All required MVP events are emitted correctly
