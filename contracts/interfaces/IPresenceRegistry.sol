@@ -4,13 +4,23 @@ pragma solidity ^0.8.20;
 /**
  * @title IPresenceRegistry
  * @author 7ayLabs
- * @notice Canonical interface for the Proof of Presence registry
+ * @notice Canonical interface for the 7ay Proof of Presence (PoP) MVP
  *
- * @dev This interface defines the external contract of the Presence Registry
- *      as specified in `specs/presence.md` and `specs/model.md`.
+ * @dev
+ * This interface defines the on-chain contract boundary for the
+ * Proof of Presence MVP.
  *
- *      Any implementation claiming compliance with the 7ay PoP protocol
- *      MUST implement this interface without deviations.
+ * Scope (MVP):
+ * - Acceptance-only presence finalization
+ * - Deterministic and idempotent behavior
+ * - On-chain persistence limited to {None, Finalized}
+ *
+ * Out of Scope (future versions):
+ * - Presence lifecycle states (Declared, Validated, Expired, Slashed)
+ * - Validators, quorum, disputes, or slashing
+ *
+ * Any implementation claiming compliance with the 7ay PoP MVP
+ * MUST implement this interface without deviation.
  */
 interface IPresenceRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -19,22 +29,14 @@ interface IPresenceRegistry {
 
     enum PresenceState {
         None,
-        Declared,
-        Validated,
-        Finalized,
-        Expired,
-        Slashed
+        Finalized
     }
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event PresenceDeclared(address indexed actor, uint256 indexed epochId);
-    event PresenceValidated(address indexed actor, uint256 indexed epochId);
     event PresenceFinalized(address indexed actor, uint256 indexed epochId);
-    event PresenceExpired(address indexed actor, uint256 indexed epochId);
-    event PresenceSlashed(address indexed actor, uint256 indexed epochId);
 
     /*//////////////////////////////////////////////////////////////
                             READ OPERATIONS
@@ -58,41 +60,17 @@ interface IPresenceRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Declare presence for the caller in a given epoch
+     * @notice Finalize presence for an actor within a given epoch
      *
-     * @param epochId The epoch identifier
-     */
-    function declarePresence(uint256 epochId) external;
-
-    /**
-     * @notice Validate a declared presence
-     *
-     * @param actor   The actor whose presence is validated
-     * @param epochId The epoch identifier
-     */
-    function validatePresence(address actor, uint256 epochId) external;
-
-    /**
-     * @notice Finalize a validated presence
+     * @dev
+     * Protocol rules (MVP):
+     * - MUST be called by the actor itself
+     * - MUST be deterministic and idempotent
+     * - MUST NOT modify any other actor or epoch state
+     * - MUST emit {PresenceFinalized} exactly once per (actor, epoch)
      *
      * @param actor   The actor whose presence is finalized
      * @param epochId The epoch identifier
      */
     function finalizePresence(address actor, uint256 epochId) external;
-
-    /**
-     * @notice Expire a declared presence
-     *
-     * @param actor   The actor whose presence is expired
-     * @param epochId The epoch identifier
-     */
-    function expirePresence(address actor, uint256 epochId) external;
-
-    /**
-     * @notice Slash a presence due to protocol violation
-     *
-     * @param actor   The actor whose presence is slashed
-     * @param epochId The epoch identifier
-     */
-    function slashPresence(address actor, uint256 epochId) external;
 }
