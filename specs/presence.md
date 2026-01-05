@@ -60,22 +60,32 @@ during which presence can be declared and validated.
 
 Epochs:
 - Have a unique identifier (`epochId`)
-- Have a defined start and end (off-chain)
-- Are finalized sequentially (off-chain)
+- Have a defined start and end
+- Follow a deterministic lifecycle
 - Cannot overlap
+
+> **See Also:** specs/epoch.md for the complete epoch specification.
 
 #### 2.3.1 MVP Epoch Model
 
-In the MVP:
+In the MVP (PresenceRegistry v0.1):
 - `epochId` is a `uint256` parameter provided by the caller
 - `epochId = 0` is reserved (genesis/null) and MUST be rejected
 - Epoch lifecycle (creation, activation, finalization) is managed off-chain
 - The on-chain contract does NOT validate epoch existence or state
 - The on-chain contract only validates `epochId != 0`
 
-#### 2.3.2 Epoch Identifier Assignment
+#### 2.3.2 Integrated Epoch Model (v0.2+)
 
-Epoch identifiers SHOULD be assigned by the off-chain orchestration layer.
+In integrated mode (with EpochRegistry):
+- Epochs are created and managed on-chain
+- Presence finalization validates epoch state
+- Only `Active` epochs accept presence finalization
+- Epoch finalization freezes all presence states
+
+#### 2.3.3 Epoch Identifier Assignment
+
+Epoch identifiers SHOULD be assigned by the orchestration layer.
 Common strategies include:
 - Sequential integers (1, 2, 3, ...)
 - Block number ranges
