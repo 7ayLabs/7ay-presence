@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 
-import { PresenceRegistry } from "../contracts/core/PresenceRegistry.sol";
-import { IPresenceRegistry } from "../contracts/interfaces/IPresenceRegistry.sol";
+import {PresenceRegistry} from "../contracts/core/PresenceRegistry.sol";
+import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
 
 /**
  * @title PresenceRegistryEventTests
@@ -57,18 +57,9 @@ contract PresenceRegistryEventTests is Test {
 
         assertEq(logs.length, 1);
         assertEq(logs[0].topics.length, 3);
-        assertEq(
-            logs[0].topics[0],
-            keccak256("PresenceFinalized(address,uint256)")
-        );
-        assertEq(
-            logs[0].topics[1],
-            bytes32(uint256(uint160(actor)))
-        );
-        assertEq(
-            logs[0].topics[2],
-            bytes32(epochId)
-        );
+        assertEq(logs[0].topics[0], keccak256("PresenceFinalized(address,uint256)"));
+        assertEq(logs[0].topics[1], bytes32(uint256(uint160(actor))));
+        assertEq(logs[0].topics[2], bytes32(epochId));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -109,14 +100,8 @@ contract PresenceRegistryEventTests is Test {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(logs.length, 2);
-        assertEq(
-            logs[0].topics[1],
-            bytes32(uint256(uint160(actor1)))
-        );
-        assertEq(
-            logs[1].topics[1],
-            bytes32(uint256(uint160(actor2)))
-        );
+        assertEq(logs[0].topics[1], bytes32(uint256(uint160(actor1))));
+        assertEq(logs[1].topics[1], bytes32(uint256(uint160(actor2))));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -145,10 +130,7 @@ contract PresenceRegistryEventTests is Test {
       Event MUST emit with correct parameters for any valid input.
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzz_eventEmission(
-        address fuzzActor,
-        uint256 fuzzEpochId
-    ) external {
+    function testFuzz_eventEmission(address fuzzActor, uint256 fuzzEpochId) external {
         vm.assume(fuzzActor != address(0));
         vm.assume(fuzzEpochId != 0);
 

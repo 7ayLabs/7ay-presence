@@ -68,15 +68,21 @@ interface IPresenceRegistry {
     /**
      * @notice Returns the presence state for a given actor and epoch
      *
-     * @param actor   The actor address
-     * @param epochId The epoch identifier
+     * @dev
+     * This is a pure view function that reads directly from storage.
+     * No validation is performed on inputs:
+     * - address(0) returns PresenceState.None (no revert)
+     * - epochId == 0 returns PresenceState.None (no revert)
+     *
+     * Rationale: View functions should not consume gas on validation.
+     * Invalid inputs simply return the default state (None).
+     *
+     * @param actor   The actor address (address(0) returns None)
+     * @param epochId The epoch identifier (0 returns None)
      *
      * @return state The current presence state
      */
-    function presenceState(address actor, uint256 epochId)
-        external
-        view
-        returns (PresenceState state);
+    function presenceState(address actor, uint256 epochId) external view returns (PresenceState state);
 
     /*//////////////////////////////////////////////////////////////
                         PRESENCE LIFECYCLE

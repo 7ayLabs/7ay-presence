@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { IPresenceRegistry } from "../interfaces/IPresenceRegistry.sol";
+import {IPresenceRegistry} from "../interfaces/IPresenceRegistry.sol";
 
 /**
  * @title PresenceRegistry
@@ -53,11 +53,9 @@ contract PresenceRegistry is IPresenceRegistry {
 
     /**
      * @inheritdoc IPresenceRegistry
+     * @dev No input validation - see IPresenceRegistry for rationale
      */
-    function presenceState(
-        address actor,
-        uint256 epochId
-    ) external view override returns (PresenceState state) {
+    function presenceState(address actor, uint256 epochId) external view override returns (PresenceState state) {
         return _presence[actor][epochId];
     }
 
