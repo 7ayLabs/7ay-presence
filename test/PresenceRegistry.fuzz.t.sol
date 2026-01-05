@@ -173,4 +173,27 @@ contract PresenceRegistryFuzzTests is Test {
         );
         registry.finalizePresence(fuzzActor, 0);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                        FUZZ: Invalid Actor
+      address(0) MUST be rejected as actor.
+    //////////////////////////////////////////////////////////////*/
+
+    function testFuzz_invalidActor(uint256 fuzzEpochId) external {
+        vm.assume(fuzzEpochId != 0);
+
+        vm.prank(address(0));
+        vm.expectRevert(IPresenceRegistry.InvalidActor.selector);
+        registry.finalizePresence(address(0), fuzzEpochId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        TEST: Protocol Version
+      Protocol version MUST be readable.
+    //////////////////////////////////////////////////////////////*/
+
+    function test_protocolVersion() external view {
+        string memory version = registry.protocolVersion();
+        assertEq(version, "0.1.0");
+    }
 }

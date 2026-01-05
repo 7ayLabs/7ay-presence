@@ -27,6 +27,13 @@ import { IPresenceRegistry } from "../interfaces/IPresenceRegistry.sol";
  */
 contract PresenceRegistry is IPresenceRegistry {
     /*//////////////////////////////////////////////////////////////
+                                CONSTANTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Protocol version following semantic versioning
+    string public constant PROTOCOL_VERSION = "0.1.0";
+
+    /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
 
@@ -36,6 +43,13 @@ contract PresenceRegistry is IPresenceRegistry {
     /*//////////////////////////////////////////////////////////////
                             READ OPERATIONS
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @inheritdoc IPresenceRegistry
+     */
+    function protocolVersion() external pure override returns (string memory) {
+        return PROTOCOL_VERSION;
+    }
 
     /**
      * @inheritdoc IPresenceRegistry
@@ -55,6 +69,10 @@ contract PresenceRegistry is IPresenceRegistry {
      * @inheritdoc IPresenceRegistry
      */
     function finalizePresence(address actor, uint256 epochId) external override {
+        if (actor == address(0)) {
+            revert InvalidActor();
+        }
+
         if (actor != msg.sender) {
             revert UnauthorizedActor(msg.sender, actor);
         }

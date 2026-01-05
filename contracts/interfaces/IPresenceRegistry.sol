@@ -45,6 +45,9 @@ interface IPresenceRegistry {
     /// @param epochId The invalid epoch identifier
     error InvalidEpoch(uint256 epochId);
 
+    /// @notice Raised when actor address is zero
+    error InvalidActor();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -54,6 +57,13 @@ interface IPresenceRegistry {
     /*//////////////////////////////////////////////////////////////
                             READ OPERATIONS
     //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Returns the protocol version
+     *
+     * @return The semantic version string (e.g., "0.1.0")
+     */
+    function protocolVersion() external pure returns (string memory);
 
     /**
      * @notice Returns the presence state for a given actor and epoch
