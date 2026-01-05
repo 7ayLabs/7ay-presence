@@ -177,18 +177,21 @@ The presence was invalidated due to protocol violations.
 The following invariants apply at the conceptual model level
 and MUST hold for all implementations:
 
-### MVP Invariants
+### MVP Invariants (Enforced)
 
-1. An actor MUST NOT have more than one active presence per epoch.  
-2. Presence state transitions MUST follow the defined lifecycle.  
-3. A finalized presence MUST NOT transition to another state.  
-7. All protocol decisions MUST be deterministic.  
+1. An actor MUST NOT have more than one finalized presence per epoch.
+2. A finalized presence MUST NOT be reverted.
+3. Presence state transitions MUST be deterministic and idempotent.
+4. Only the actor itself MAY finalize its own presence.
+5. Finalizing presence for one actor MUST NOT affect any other actor.
+6. Finalizing presence in one epoch MUST NOT affect any other epoch.
+7. A finalized presence MUST NOT transition back to None.
 
 ### Future Invariants (Non-MVP)
 
-4. A slashed presence MUST NOT become valid.  
-5. An expired presence MUST NOT be validated retroactively.  
-6. Epochs MUST be finalized in strict order.  
+8. A slashed presence MUST NOT become valid again.
+9. An expired presence MUST NOT be validated retroactively.
+10. Epochs MUST be finalized in strict order.  
 
 ---
 
