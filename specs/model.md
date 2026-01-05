@@ -134,9 +134,26 @@ Lifecycle transitions are conceptual; the MVP contract enforces only final prese
 
 ---
 
+### 3.1 MVP State Transitions
+
+| From | To | Trigger | Scope |
+|------|-----|---------|-------|
+| None | Finalized | Actor finalizes own presence | On-chain |
+| Finalized | Finalized | Idempotent call (no-op) | On-chain |
+
+### 3.2 Conceptual State Transitions (Non-MVP)
+
+| From | To | Trigger | Scope |
+|------|-----|---------|-------|
+| None | Declared | Actor declares presence | Off-chain |
+| Declared | Validated | Validation rules satisfied | Off-chain |
+| Declared | Expired | Epoch ends without validation | Off-chain |
+| Validated | Finalized | Epoch finalized, no disputes | On-chain |
+| Finalized | Slashed | Protocol violation detected | Future |
+
 ---
 
-### State Descriptions
+### 3.3 State Descriptions
 
 #### None
 No presence exists for the actor in the given epoch.

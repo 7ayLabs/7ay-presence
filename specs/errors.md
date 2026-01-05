@@ -73,6 +73,20 @@ error InvalidEpoch(uint256 epochId);
 
 ---
 
+### 3.3 InvalidActor
+
+Raised when the actor address is the zero address.
+
+```solidity
+error InvalidActor();
+```
+
+**Condition:** `actor == address(0)`
+
+**Rationale:** The zero address cannot be a valid actor as it has no private key.
+
+---
+
 ## 4. Error Handling Rules
 
 ### 4.1 Revert Behavior
@@ -84,10 +98,11 @@ No state changes MUST occur before the revert.
 
 When multiple error conditions are met, errors MUST be checked in this order:
 
-1. `UnauthorizedActor` — Authorization check first
-2. `InvalidEpoch` — Parameter validation second
+1. `InvalidActor` — Zero address check first
+2. `UnauthorizedActor` — Authorization check second
+3. `InvalidEpoch` — Parameter validation third
 
-This order ensures security-critical checks are performed first.
+This order ensures validity checks precede authorization checks.
 
 ### 4.3 Idempotent Operations
 

@@ -30,10 +30,13 @@ in a defined context during a specific temporal window (epoch),
 and that this assertion was validated according to protocol rules.
 
 Presence is:
-- Time-bound
-- Context-bound
-- Non-transferable
-- Deterministic
+- **Epoch-bound**: Scoped to a single epoch identifier
+- **Actor-bound**: Associated with exactly one actor
+- **Non-transferable**: Cannot be moved between actors or epochs
+- **Deterministic**: Same inputs produce same state
+
+In the MVP, the epoch identifier serves as the sole context discriminator.
+Future versions MAY introduce additional context dimensions.
 
 ---
 
@@ -56,11 +59,29 @@ An **Epoch** is a discrete, monotonically increasing time window
 during which presence can be declared and validated.
 
 Epochs:
-- Have a defined start and end
-- Are finalized sequentially
+- Have a unique identifier (`epochId`)
+- Have a defined start and end (off-chain)
+- Are finalized sequentially (off-chain)
 - Cannot overlap
 
-In the MVP, an Epoch represents an event-scoped temporal window and does not imply network-level consensus epochs.
+#### 2.3.1 MVP Epoch Model
+
+In the MVP:
+- `epochId` is a `uint256` parameter provided by the caller
+- `epochId = 0` is reserved (genesis/null) and MUST be rejected
+- Epoch lifecycle (creation, activation, finalization) is managed off-chain
+- The on-chain contract does NOT validate epoch existence or state
+- The on-chain contract only validates `epochId != 0`
+
+#### 2.3.2 Epoch Identifier Assignment
+
+Epoch identifiers SHOULD be assigned by the off-chain orchestration layer.
+Common strategies include:
+- Sequential integers (1, 2, 3, ...)
+- Block number ranges
+- Timestamp-derived identifiers
+
+The protocol does not enforce a specific strategy.
 
 ---
 
@@ -80,10 +101,28 @@ The protocol itself acts as an impartial arbitrator enforcing all invariants.
 
 ## 4. Presence Lifecycle
 
-A presence claim MUST follow this lifecycle:
+A presence claim MUST follow this lifecycle.
 No transitions outside this flow are valid.
 
-Lifecycle stages are conceptual; only final acceptance or rejection is enforced on-chain in the MVP.
+### 4.1 MVP State Transitions (On-Chain)
+
+| From | To | Trigger | Conditions | Event |
+|------|-----|---------|------------|-------|
+| None | Finalized | `finalizePresence(actor, epochId)` | `actor == msg.sender` ∧ `epochId != 0` ∧ `actor != address(0)` | `PresenceFinalized` |
+| Finalized | Finalized | `finalizePresence(actor, epochId)` | (idempotent, no-op) | None |
+
+### 4.2 Terminal States
+
+- **Finalized**: Immutable. No outgoing transitions.
+
+### 4.3 Idempotency Rule
+
+Repeated calls to `finalizePresence()` with the same `(actor, epochId)` MUST NOT:
+- Revert
+- Change state
+- Emit events
+
+Lifecycle stages beyond MVP (Declared, Validated, Expired, Slashed) are conceptual and enforced off-chain.
 
 ---
 
