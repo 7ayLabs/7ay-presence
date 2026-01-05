@@ -20,18 +20,26 @@ This repository defines, formalizes, and freezes the technical truth of the 7ay 
 
 ```
 specs/
-  presence.md      # Protocol specification (canonical rules)
-  model.md         # Conceptual system model
-  errors.md        # Error specification (custom errors)
+├── presence.md           # Protocol specification (canonical rules)
+├── model.md              # Conceptual system model
+└── errors.md             # Error specification (custom errors)
 
 contracts/
-  interfaces/
-    IPresenceRegistry.sol   # Canonical interface
-  core/
-    PresenceRegistry.sol    # Reference implementation (MVP)
+├── interfaces/
+│   └── IPresenceRegistry.sol    # Canonical interface
+└── core/
+    └── PresenceRegistry.sol     # Reference implementation (MVP)
 
 test/
-  PresenceRegistry.invariants.t.sol   # Invariant verification
+├── PresenceRegistry.invariants.t.sol   # Protocol invariants (7 tests)
+├── PresenceRegistry.fuzz.t.sol         # Fuzz tests (8 tests)
+└── PresenceRegistry.events.t.sol       # Event tests (6 tests)
+
+.github/workflows/
+├── build.yml             # Compile & format
+├── test.yml              # Invariants, fuzz, events, coverage
+├── security.yml          # Slither static analysis
+└── gas.yml               # Gas snapshots
 ```
 
 ---
