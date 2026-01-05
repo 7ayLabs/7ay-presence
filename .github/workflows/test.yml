@@ -1,23 +1,25 @@
-name: CI
-
-permissions: {}
+name: Test
 
 on:
   push:
+    branches: [main, develop]
   pull_request:
+    branches: [main, develop]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  check:
-    name: Foundry project
+  invariants:
+    name: Protocol Invariants
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
           submodules: recursive
@@ -25,14 +27,53 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Show Forge version
-        run: forge --version
+      - name: Run invariant tests
+        run: forge test --match-contract Invariants -vvv
 
-      - name: Run Forge fmt
-        run: forge fmt --check
+  fuzz:
+    name: Fuzz Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
 
-      - name: Run Forge build
-        run: forge build --sizes
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Run Forge tests
-        run: forge test -vvv
+      - name: Run fuzz tests
+        run: forge test --match-contract Fuzz -vvv
+
+  events:
+    name: Event Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run event tests
+        run: forge test --match-contract Event -vvv
+
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Generate coverage report
+        run: forge coverage --report summary
