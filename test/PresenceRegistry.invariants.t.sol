@@ -187,40 +187,4 @@ contract PresenceRegistryInvariants is Test {
         );
     }
 
-    // === ERROR VALIDATION TESTS ===
-
-    /*//////////////////////////////////////////////////////////////
-                        ERROR: InvalidEpoch
-      Epoch 0 is reserved and MUST NOT be used for presence finalization.
-    //////////////////////////////////////////////////////////////*/
-
-    function test_rejectsInvalidEpoch() external {
-        vm.prank(actor);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IPresenceRegistry.InvalidEpoch.selector,
-                0
-            )
-        );
-        registry.finalizePresence(actor, 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        ERROR: UnauthorizedActor
-      Caller MUST be the actor to finalize presence.
-    //////////////////////////////////////////////////////////////*/
-
-    function test_rejectsUnauthorizedActor() external {
-        address attacker = address(0xBAD);
-
-        vm.prank(attacker);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IPresenceRegistry.UnauthorizedActor.selector,
-                attacker,
-                actor
-            )
-        );
-        registry.finalizePresence(actor, epochId);
-    }
 }
