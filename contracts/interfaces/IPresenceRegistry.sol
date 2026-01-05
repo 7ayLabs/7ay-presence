@@ -33,6 +33,19 @@ interface IPresenceRegistry {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Raised when caller attempts to finalize presence for a different actor
+    /// @param caller The address that called the function
+    /// @param actor The actor address passed as parameter
+    error UnauthorizedActor(address caller, address actor);
+
+    /// @notice Raised when an invalid epoch identifier is provided
+    /// @param epochId The invalid epoch identifier
+    error InvalidEpoch(uint256 epochId);
+
+    /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 

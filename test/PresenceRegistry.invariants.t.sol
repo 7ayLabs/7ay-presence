@@ -46,11 +46,13 @@ contract PresenceRegistryInvariants is Test {
         epochId = 1;
     }
 
-    // === MVP INVARIANTS (MVP — Enforced) ===
+    // === MVP INVARIANTS (Enforced) ===
+    // Reference: specs/presence.md Section 7, specs/model.md Section 5
 
     /*//////////////////////////////////////////////////////////////
-                        INVARIANT #1 (MVP — Enforced)
-      Only {None, Finalized} presence states are ever reachable (protocol rule)
+                        INVARIANT #1
+      An actor MUST NOT have more than one finalized presence per epoch.
+      Only {None, Finalized} presence states are ever reachable.
     //////////////////////////////////////////////////////////////*/
 
     function invariant_singleFinalizedPresencePerEpoch() external {
@@ -63,8 +65,8 @@ contract PresenceRegistryInvariants is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        INVARIANT #2 (MVP — Enforced)
-      Finalized presence state is strictly immutable (protocol rule)
+                        INVARIANT #2
+      A finalized presence MUST NOT be reverted.
     //////////////////////////////////////////////////////////////*/
 
     function invariant_finalizedPresenceIsImmutable() external {
@@ -86,9 +88,10 @@ contract PresenceRegistryInvariants is Test {
         );
     }
     /*//////////////////////////////////////////////////////////////
-                        INVARIANT #3 (MVP — Enforced)
-      Finalization is idempotent and deterministic (protocol rule)
+                        INVARIANT #3
+      Presence state transitions MUST be deterministic and idempotent.
     //////////////////////////////////////////////////////////////*/
+
     function invariant_deterministicFinalization() external {
         // Call finalizePresence twice, ensuring both times the state is Finalized
         vm.prank(actor);
@@ -108,26 +111,30 @@ contract PresenceRegistryInvariants is Test {
         );
     }
 
-    // === ADDITIONAL MVP PROTOCOL INVARIANTS (MVP — Enforced) ===
+    /*//////////////////////////////////////////////////////////////
+                        INVARIANT #4
+      Only the actor itself MAY finalize its own presence.
+    //////////////////////////////////////////////////////////////*/
 
-    /// Invariant — Actor Authorization Binding
-    /// Presence finalization MUST be authorized exclusively by the actor itself.
-    /// No other address can ever finalize presence for another actor.
     function invariant_onlyActorCanFinalizePresence() external {
         address attacker = address(0xBEEF);
 
         vm.prank(attacker);
-        try registry.finalizePresence(actor, epochId) {
-            // If this succeeds, invariant is violated
-            assertTrue(false);
-        } catch {
-            // Expected: cannot finalize for another actor
-            assertTrue(true);
-        }
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPresenceRegistry.UnauthorizedActor.selector,
+                attacker,
+                actor
+            )
+        );
+        registry.finalizePresence(actor, epochId);
     }
 
-    /// Invariant — Actor Isolation
-    /// Finalizing presence for one actor MUST NEVER affect the presence state of any other actor.
+    /*//////////////////////////////////////////////////////////////
+                        INVARIANT #5
+      Finalizing presence for one actor MUST NOT affect any other actor.
+    //////////////////////////////////////////////////////////////*/
+
     function invariant_actorIsolation() external {
         address actor2 = address(0xB0B);
 
@@ -144,8 +151,11 @@ contract PresenceRegistryInvariants is Test {
         );
     }
 
-    /// Invariant — Epoch Isolation
-    /// Finalizing presence in one epoch MUST NEVER affect any other epoch for the same actor.
+    /*//////////////////////////////////////////////////////////////
+                        INVARIANT #6
+      Finalizing presence in one epoch MUST NOT affect any other epoch.
+    //////////////////////////////////////////////////////////////*/
+
     function invariant_epochIsolation() external {
         vm.prank(actor);
         registry.finalizePresence(actor, 1);
@@ -160,8 +170,11 @@ contract PresenceRegistryInvariants is Test {
         );
     }
 
-    /// Invariant — Monotonicity of Finalized State
-    /// Once presence is finalized, it MUST NEVER revert to None.
+    /*//////////////////////////////////////////////////////////////
+                        INVARIANT #7
+      A finalized presence MUST NOT transition back to None.
+    //////////////////////////////////////////////////////////////*/
+
     function invariant_finalizedIsMonotonic() external {
         vm.prank(actor);
         registry.finalizePresence(actor, epochId);
@@ -172,5 +185,42 @@ contract PresenceRegistryInvariants is Test {
         assertTrue(
             state == IPresenceRegistry.PresenceState.Finalized
         );
+    }
+
+    // === ERROR VALIDATION TESTS ===
+
+    /*//////////////////////////////////////////////////////////////
+                        ERROR: InvalidEpoch
+      Epoch 0 is reserved and MUST NOT be used for presence finalization.
+    //////////////////////////////////////////////////////////////*/
+
+    function test_rejectsInvalidEpoch() external {
+        vm.prank(actor);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPresenceRegistry.InvalidEpoch.selector,
+                0
+            )
+        );
+        registry.finalizePresence(actor, 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        ERROR: UnauthorizedActor
+      Caller MUST be the actor to finalize presence.
+    //////////////////////////////////////////////////////////////*/
+
+    function test_rejectsUnauthorizedActor() external {
+        address attacker = address(0xBAD);
+
+        vm.prank(attacker);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IPresenceRegistry.UnauthorizedActor.selector,
+                attacker,
+                actor
+            )
+        );
+        registry.finalizePresence(actor, epochId);
     }
 }

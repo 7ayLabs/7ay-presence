@@ -55,8 +55,13 @@ contract PresenceRegistry is IPresenceRegistry {
      * @inheritdoc IPresenceRegistry
      */
     function finalizePresence(address actor, uint256 epochId) external override {
-        require(actor == msg.sender, "PRESENCE: unauthorized actor");
-        require(epochId != 0, "PRESENCE: invalid epoch");
+        if (actor != msg.sender) {
+            revert UnauthorizedActor(msg.sender, actor);
+        }
+
+        if (epochId == 0) {
+            revert InvalidEpoch(epochId);
+        }
 
         // Idempotent finalization
         if (_presence[actor][epochId] == PresenceState.Finalized) {
