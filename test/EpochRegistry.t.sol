@@ -323,12 +323,21 @@ contract EpochRegistryFuzzTests is Test {
         vm.stopPrank();
     }
 
-    function testFuzz_invalidBounds(uint256 epochId, uint256 time) external {
+    function testFuzz_invalidBounds_equal(uint256 epochId, uint256 time) external {
         vm.assume(epochId != 0);
 
         vm.prank(authority);
         vm.expectRevert(abi.encodeWithSelector(IEpochRegistry.InvalidEpochBounds.selector, time, time));
         registry.createEpoch(epochId, time, time); // startTime == endTime
+    }
+
+    function testFuzz_invalidBounds_reversed(uint256 epochId, uint256 startTime, uint256 endTime) external {
+        vm.assume(epochId != 0);
+        vm.assume(startTime > endTime); // startTime > endTime
+
+        vm.prank(authority);
+        vm.expectRevert(abi.encodeWithSelector(IEpochRegistry.InvalidEpochBounds.selector, startTime, endTime));
+        registry.createEpoch(epochId, startTime, endTime);
     }
 
     function test_invalidEpochId() external {
@@ -478,5 +487,10 @@ contract EpochRegistryPropertyTests is Test {
 
         vm.warp(block.timestamp + 200);
         assertFalse(registry.isEpochActive(EPOCH_ID)); // Closed
+    }
+
+    function test_constructorRejectsZeroAuthority() external {
+        vm.expectRevert(IEpochRegistry.InvalidEpochAuthority.selector);
+        new EpochRegistry(address(0));
     }
 }

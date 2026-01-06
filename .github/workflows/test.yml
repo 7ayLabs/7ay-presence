@@ -68,10 +68,28 @@ jobs:
       - name: Run invariant tests
         run: forge test --match-contract Invariants -vvv
 
+  events:
+    name: Event Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          cache: true
+
+      - name: Run event tests
+        run: forge test --match-contract EventTests -vvv
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
-    needs: [unit, fuzz, invariants]
+    needs: [unit, fuzz, invariants, events]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

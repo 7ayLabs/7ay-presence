@@ -94,6 +94,9 @@ interface IEpochRegistry {
     /// @param currentState The current state of the epoch
     error EpochNotClosed(uint256 epochId, EpochState currentState);
 
+    /// @notice Raised when epoch authority address is invalid (zero address)
+    error InvalidEpochAuthority();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/

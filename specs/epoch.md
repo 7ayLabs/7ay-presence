@@ -178,9 +178,14 @@ Properties:
 | From | To | Trigger | Conditions | Event |
 |------|-----|---------|------------|-------|
 | None | Scheduled | `createEpoch()` | Valid bounds, authority | `EpochCreated` |
-| Scheduled | Active | (automatic) | `block.timestamp >= startTime` | `EpochActivated` |
-| Active | Closed | (automatic) | `block.timestamp >= endTime` | `EpochClosed` |
+| Scheduled | Active | (automatic) | `block.timestamp >= startTime` | `EpochActivated` (optional) |
+| Active | Closed | (automatic) | `block.timestamp >= endTime` | `EpochClosed` (optional) |
 | Closed | Finalized | `finalizeEpoch()` | Authority, all disputes resolved | `EpochFinalized` |
+
+**Note:** For the reference implementation, `Scheduled → Active` and `Active → Closed` transitions
+are derived from `block.timestamp` and epoch bounds. No `EpochActivated` or `EpochClosed` events
+are emitted; implementations MAY choose to emit these events lazily or omit them entirely while
+remaining compliant with this specification.
 
 ### 4.3 Automatic Transitions
 
@@ -340,6 +345,30 @@ Raised when caller is not the epoch authority.
 
 ```solidity
 error UnauthorizedEpochAuthority(address caller, address authority);
+```
+
+### 7.7 InvalidEpochId
+
+Raised when epoch identifier is zero (reserved value).
+
+```solidity
+error InvalidEpochId();
+```
+
+### 7.8 EpochNotClosed
+
+Raised when attempting to finalize an epoch that is not in Closed state.
+
+```solidity
+error EpochNotClosed(uint256 epochId, EpochState currentState);
+```
+
+### 7.9 InvalidEpochAuthority
+
+Raised when epoch authority address is invalid (zero address).
+
+```solidity
+error InvalidEpochAuthority();
 ```
 
 ---

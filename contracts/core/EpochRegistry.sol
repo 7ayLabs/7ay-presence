@@ -45,7 +45,7 @@ contract EpochRegistry is IEpochRegistry {
      */
     constructor(address _authority) {
         if (_authority == address(0)) {
-            revert UnauthorizedEpochAuthority(address(0), address(0));
+            revert InvalidEpochAuthority();
         }
         epochAuthority = _authority;
     }
