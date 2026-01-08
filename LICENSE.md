@@ -165,4 +165,4 @@ reference materials.
 
 For commercial licensing inquiries, please contact:
 
-7ayLabs
+comercial@7ayLabs.com
