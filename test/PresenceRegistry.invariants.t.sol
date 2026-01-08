@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 
 import {PresenceRegistry} from "../contracts/core/PresenceRegistry.sol";
 import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
+import {EpochRegistry} from "../contracts/core/EpochRegistry.sol";
+import {IEpochRegistry} from "../contracts/interfaces/IEpochRegistry.sol";
 
 /**
  * @title PresenceRegistryHandler
@@ -19,6 +21,8 @@ import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
  */
 contract PresenceRegistryHandler is Test {
     IPresenceRegistry public registry;
+    IEpochRegistry public epochRegistry;
+    address public constant AUTHORITY = address(0xA077);
 
     // Ghost variables for tracking state across fuzzer calls
     mapping(address => mapping(uint256 => bool)) public ghost_finalized;
@@ -29,18 +33,19 @@ contract PresenceRegistryHandler is Test {
     address[] internal boundedActors;
     uint256[] internal boundedEpochs;
 
-    constructor(IPresenceRegistry _registry) {
+    constructor(IPresenceRegistry _registry, IEpochRegistry _epochRegistry) {
         registry = _registry;
+        epochRegistry = _epochRegistry;
 
         // Initialize bounded sets for focused invariant testing
         boundedActors.push(address(0xA11CE));
         boundedActors.push(address(0xB0B));
         boundedActors.push(address(0xCAFE));
 
+        // Use pre-created epochs (created in setUp)
         boundedEpochs.push(1);
         boundedEpochs.push(2);
         boundedEpochs.push(3);
-        boundedEpochs.push(type(uint256).max);
     }
 
     /**
@@ -118,11 +123,27 @@ contract PresenceRegistryHandler is Test {
  */
 contract PresenceRegistryInvariants is Test {
     IPresenceRegistry internal registry;
+    IEpochRegistry internal epochRegistry;
     PresenceRegistryHandler internal handler;
+    address internal constant AUTHORITY = address(0xA077);
 
     function setUp() external {
-        registry = IPresenceRegistry(address(new PresenceRegistry()));
-        handler = new PresenceRegistryHandler(registry);
+        // Deploy EpochRegistry
+        epochRegistry = IEpochRegistry(address(new EpochRegistry(AUTHORITY)));
+
+        // Deploy PresenceRegistry with epoch registry
+        registry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry)));
+
+        // Create active epochs for bounded epochs
+        uint256 start = block.timestamp;
+        uint256 end = block.timestamp + 1 days;
+        vm.startPrank(AUTHORITY);
+        epochRegistry.createEpoch(1, start, end);
+        epochRegistry.createEpoch(2, start, end);
+        epochRegistry.createEpoch(3, start, end);
+        vm.stopPrank();
+
+        handler = new PresenceRegistryHandler(registry, epochRegistry);
 
         // Target only the handler for fuzzing
         targetContract(address(handler));
@@ -135,12 +156,12 @@ contract PresenceRegistryInvariants is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        INVARIANT #1: Binary State Space
-      Only {None, Finalized} presence states are ever reachable.
-      Reference: specs/presence.md Section 7
+                        INVARIANT #1: Valid State Space
+      Only {None, Declared, Finalized} presence states are ever reachable.
+      Reference: specs/v0.3/presence.md
     //////////////////////////////////////////////////////////////*/
 
-    function invariant_binaryStateSpace() external view {
+    function invariant_validStateSpace() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
             address actor = handler.getGhostActor(i);
@@ -149,7 +170,9 @@ contract PresenceRegistryInvariants is Test {
             IPresenceRegistry.PresenceState state = registry.presenceState(actor, epochId);
 
             assertTrue(
-                state == IPresenceRegistry.PresenceState.None || state == IPresenceRegistry.PresenceState.Finalized,
+                state == IPresenceRegistry.PresenceState.None
+                    || state == IPresenceRegistry.PresenceState.Declared
+                    || state == IPresenceRegistry.PresenceState.Finalized,
                 "INV1: Invalid state detected"
             );
         }
@@ -266,13 +289,25 @@ contract PresenceRegistryInvariants is Test {
  */
 contract PresenceRegistryPropertyTests is Test {
     IPresenceRegistry internal registry;
+    IEpochRegistry internal epochRegistry;
+    address internal constant AUTHORITY = address(0xA077);
 
     address internal constant ACTOR = address(0xA11CE);
     address internal constant ATTACKER = address(0xBEEF);
     uint256 internal constant EPOCH_ID = 1;
 
     function setUp() external {
-        registry = IPresenceRegistry(address(new PresenceRegistry()));
+        // Deploy EpochRegistry
+        epochRegistry = IEpochRegistry(address(new EpochRegistry(AUTHORITY)));
+
+        // Deploy PresenceRegistry
+        registry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry)));
+
+        // Create active epochs
+        vm.startPrank(AUTHORITY);
+        epochRegistry.createEpoch(1, block.timestamp, block.timestamp + 1 days);
+        epochRegistry.createEpoch(2, block.timestamp, block.timestamp + 1 days);
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -291,9 +326,12 @@ contract PresenceRegistryPropertyTests is Test {
         // Post-state: Finalized
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Finalized));
 
-        // State space is binary
+        // State space is {None, Declared, Finalized}
         IPresenceRegistry.PresenceState state = registry.presenceState(ACTOR, EPOCH_ID);
-        assertTrue(state == IPresenceRegistry.PresenceState.None || state == IPresenceRegistry.PresenceState.Finalized);
+        assertTrue(
+            state == IPresenceRegistry.PresenceState.None || state == IPresenceRegistry.PresenceState.Declared
+                || state == IPresenceRegistry.PresenceState.Finalized
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

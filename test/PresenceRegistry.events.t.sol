@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 
 import {PresenceRegistry} from "../contracts/core/PresenceRegistry.sol";
 import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
+import {EpochRegistry} from "../contracts/core/EpochRegistry.sol";
+import {IEpochRegistry} from "../contracts/interfaces/IEpochRegistry.sol";
 
 /**
  * @title PresenceRegistryEventTests
@@ -15,18 +17,32 @@ import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
  * Events are critical for off-chain indexing and auditability.
  *
  * Specification references:
- * - specs/presence.md Section 6 (Events)
+ * - specs/v0.3/presence.md (Events)
  */
 contract PresenceRegistryEventTests is Test {
     IPresenceRegistry internal registry;
+    IEpochRegistry internal epochRegistry;
+    address internal constant AUTHORITY = address(0xA077);
 
     address internal actor;
     uint256 internal epochId;
 
     function setUp() external {
-        registry = IPresenceRegistry(address(new PresenceRegistry()));
+        epochRegistry = IEpochRegistry(address(new EpochRegistry(AUTHORITY)));
+        registry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry)));
         actor = address(0xA11CE);
         epochId = 1;
+
+        // Create active epoch
+        vm.prank(AUTHORITY);
+        epochRegistry.createEpoch(epochId, block.timestamp, block.timestamp + 1 days);
+    }
+
+    /// @dev Helper to create active epoch
+    function _createActiveEpoch(uint256 _epochId) internal {
+        if (_epochId == 0 || epochRegistry.epochState(_epochId) != IEpochRegistry.EpochState.None) return;
+        vm.prank(AUTHORITY);
+        epochRegistry.createEpoch(_epochId, block.timestamp, block.timestamp + 1 days);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -110,6 +126,9 @@ contract PresenceRegistryEventTests is Test {
     //////////////////////////////////////////////////////////////*/
 
     function test_multipleEpochsEmitSeparateEvents() external {
+        // Create second epoch (epoch 1 already created in setUp)
+        _createActiveEpoch(2);
+
         vm.recordLogs();
 
         vm.prank(actor);
@@ -133,6 +152,8 @@ contract PresenceRegistryEventTests is Test {
     function testFuzz_eventEmission(address fuzzActor, uint256 fuzzEpochId) external {
         vm.assume(fuzzActor != address(0));
         vm.assume(fuzzEpochId != 0);
+
+        _createActiveEpoch(fuzzEpochId);
 
         vm.expectEmit(true, true, false, true);
         emit IPresenceRegistry.PresenceFinalized(fuzzActor, fuzzEpochId);

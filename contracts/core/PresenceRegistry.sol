@@ -36,7 +36,7 @@ contract PresenceRegistry is IPresenceRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IPresenceRegistry
-    IEpochRegistry public immutable epochRegistry;
+    IEpochRegistry public immutable override epochRegistry;
 
     /// @notice actor => epochId => presence state
     mapping(address => mapping(uint256 => PresenceState)) private _presence;
