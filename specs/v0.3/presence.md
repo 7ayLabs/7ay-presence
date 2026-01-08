@@ -30,7 +30,7 @@ None ──declarePresence()──► Declared ──finalizePresence()──►
 function declarePresence(address actor, uint256 epochId) external;
 function finalizePresence(address actor, uint256 epochId) external;
 function presenceState(address actor, uint256 epochId) external view returns (PresenceState);
-function epochRegistry() external view returns (address);
+function epochRegistry() external view returns (IEpochRegistry);
 ```
 
 ## Errors (priority order)

@@ -18,6 +18,7 @@ contract PresenceRegistryHandler is Test {
     IEpochRegistry public epochRegistry;
     address public constant AUTHORITY = address(0xA077);
 
+    mapping(address => mapping(uint256 => bool)) public ghost_declared;
     mapping(address => mapping(uint256 => bool)) public ghost_finalized;
     address[] public ghost_actors;
     uint256[] public ghost_epochs;
@@ -38,10 +39,28 @@ contract PresenceRegistryHandler is Test {
         boundedEpochs.push(3);
     }
 
+    function declarePresence(uint256 actorSeed, uint256 epochSeed) external {
+        address actor = boundedActors[actorSeed % boundedActors.length];
+        uint256 epochId = boundedEpochs[epochSeed % boundedEpochs.length];
+
+        bool wasDeclared = ghost_declared[actor][epochId];
+        bool wasFinalized = ghost_finalized[actor][epochId];
+
+        vm.prank(actor);
+        registry.declarePresence(actor, epochId);
+
+        if (!wasDeclared && !wasFinalized) {
+            ghost_declared[actor][epochId] = true;
+            ghost_actors.push(actor);
+            ghost_epochs.push(epochId);
+        }
+    }
+
     function finalizePresence(uint256 actorSeed, uint256 epochSeed) external {
         address actor = boundedActors[actorSeed % boundedActors.length];
         uint256 epochId = boundedEpochs[epochSeed % boundedEpochs.length];
 
+        bool wasDeclared = ghost_declared[actor][epochId];
         bool wasFinalized = ghost_finalized[actor][epochId];
 
         vm.prank(actor);
@@ -49,8 +68,10 @@ contract PresenceRegistryHandler is Test {
 
         if (!wasFinalized) {
             ghost_finalized[actor][epochId] = true;
-            ghost_actors.push(actor);
-            ghost_epochs.push(epochId);
+            if (!wasDeclared) {
+                ghost_actors.push(actor);
+                ghost_epochs.push(epochId);
+            }
         }
     }
 
@@ -106,9 +127,10 @@ contract PresenceRegistryInvariants is Test {
 
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](2);
-        selectors[0] = PresenceRegistryHandler.finalizePresence.selector;
-        selectors[1] = PresenceRegistryHandler.finalizePresenceUnauthorized.selector;
+        bytes4[] memory selectors = new bytes4[](3);
+        selectors[0] = PresenceRegistryHandler.declarePresence.selector;
+        selectors[1] = PresenceRegistryHandler.finalizePresence.selector;
+        selectors[2] = PresenceRegistryHandler.finalizePresenceUnauthorized.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -129,7 +151,25 @@ contract PresenceRegistryInvariants is Test {
         }
     }
 
-    /// @dev INV2: Finalized = immutable
+    /// @dev INV2: Declared = monotonic (cannot revert to None)
+    function invariant_declarationMonotonicity() external view {
+        uint256 len = handler.getGhostActorsLength();
+        for (uint256 i = 0; i < len; i++) {
+            address actor = handler.getGhostActor(i);
+            uint256 epochId = handler.getGhostEpoch(i);
+
+            if (handler.ghost_declared(actor, epochId)) {
+                IPresenceRegistry.PresenceState state = registry.presenceState(actor, epochId);
+                assertTrue(
+                    state == IPresenceRegistry.PresenceState.Declared
+                        || state == IPresenceRegistry.PresenceState.Finalized,
+                    "INV2: Declared reverted to None"
+                );
+            }
+        }
+    }
+
+    /// @dev INV3: Finalized = immutable
     function invariant_finalizationMonotonicity() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
@@ -140,13 +180,13 @@ contract PresenceRegistryInvariants is Test {
                 assertEq(
                     uint256(registry.presenceState(actor, epochId)),
                     uint256(IPresenceRegistry.PresenceState.Finalized),
-                    "INV2: Finalized reverted"
+                    "INV3: Finalized reverted"
                 );
             }
         }
     }
 
-    /// @dev INV3: Actor isolation
+    /// @dev INV4: Actor isolation
     function invariant_actorIsolation() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
@@ -157,12 +197,12 @@ contract PresenceRegistryInvariants is Test {
             IPresenceRegistry.PresenceState onChainState = registry.presenceState(actor, epochId);
 
             if (ghostFinalized) {
-                assertEq(uint256(onChainState), uint256(IPresenceRegistry.PresenceState.Finalized), "INV3: Mismatch");
+                assertEq(uint256(onChainState), uint256(IPresenceRegistry.PresenceState.Finalized), "INV4: Mismatch");
             }
         }
     }
 
-    /// @dev INV4: Epoch isolation
+    /// @dev INV5: Epoch isolation
     function invariant_epochIsolation() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
@@ -171,27 +211,36 @@ contract PresenceRegistryInvariants is Test {
 
             uint256 adjacentEpoch = epochId == type(uint256).max ? epochId - 1 : epochId + 1;
 
-            if (!handler.ghost_finalized(actor, adjacentEpoch)) {
+            if (!handler.ghost_finalized(actor, adjacentEpoch) && !handler.ghost_declared(actor, adjacentEpoch)) {
                 assertEq(
                     uint256(registry.presenceState(actor, adjacentEpoch)),
                     uint256(IPresenceRegistry.PresenceState.None),
-                    "INV4: Adjacent affected"
+                    "INV5: Adjacent affected"
                 );
             }
         }
     }
 
-    /// @dev INV5: Ghost consistency
+    /// @dev INV6: Ghost consistency (declared and finalized tracking)
     function invariant_ghostConsistency() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
             address actor = handler.getGhostActor(i);
             uint256 epochId = handler.getGhostEpoch(i);
 
+            bool ghostDeclared = handler.ghost_declared(actor, epochId);
             bool ghostFinalized = handler.ghost_finalized(actor, epochId);
             IPresenceRegistry.PresenceState onChainState = registry.presenceState(actor, epochId);
 
-            assertEq(ghostFinalized, onChainState == IPresenceRegistry.PresenceState.Finalized, "INV5: Desync");
+            if (ghostFinalized) {
+                assertEq(uint256(onChainState), uint256(IPresenceRegistry.PresenceState.Finalized), "INV6: Finalized desync");
+            } else if (ghostDeclared) {
+                assertTrue(
+                    onChainState == IPresenceRegistry.PresenceState.Declared
+                        || onChainState == IPresenceRegistry.PresenceState.Finalized,
+                    "INV6: Declared desync"
+                );
+            }
         }
     }
 }
