@@ -1,12 +1,14 @@
 # 7ay Presence Protocol
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE)
 [![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.28-blue)](https://docs.soliditylang.org/)
 [![Foundry](https://img.shields.io/badge/Built%20with-Foundry-orange)](https://book.getfoundry.sh/)
 
-The Presence Protocol is a formal specification for Proof of Presence (PoP), originally designed by Zaid Arath.
+This repository contains the public specification and reference materials for the 7ay Presence Protocol, originally designed by Zaid Arath.
 
-It is a free culture work, licensed under the MIT License.
+The protocol is source-available under the Business Source License (BSL 1.1).
+Non-commercial use, research, and integration are permitted.
+Commercial use requires a separate license from 7ayLabs.
 
 ## Current Version
 
@@ -73,4 +75,12 @@ The previous protocol versions are available in the `specs/` directory:
 
 ## License
 
-MIT
+This project is licensed under the **Business Source License 1.1**.
+
+- **Non-commercial use**: Permitted without restriction
+- **Research & education**: Permitted
+- **Commercial use**: Requires explicit license from 7ayLabs
+
+On **January 1, 2029**, the license automatically converts to **Apache License 2.0**.
+
+See [LICENSE](LICENSE) for full terms. For commercial licensing inquiries, contact 7ayLabs.
