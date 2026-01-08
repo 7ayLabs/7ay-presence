@@ -3,19 +3,15 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 
-import {PresenceRegistry} from "../contracts/core/PresenceRegistry.sol";
-import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
-import {EpochRegistry} from "../contracts/core/EpochRegistry.sol";
-import {IEpochRegistry} from "../contracts/interfaces/IEpochRegistry.sol";
+import {PresenceRegistry} from "../../../contracts/core/PresenceRegistry.sol";
+import {IPresenceRegistry} from "../../../contracts/interfaces/IPresenceRegistry.sol";
+import {EpochRegistry} from "../../../contracts/core/EpochRegistry.sol";
+import {IEpochRegistry} from "../../../contracts/interfaces/IEpochRegistry.sol";
 
 /**
  * @title PresenceRegistryDeclarationTests
- * @notice Declaration layer tests for the 7ay PoP v0.3
- *
- * @dev
- * Tests for declarePresence() function and Declared state.
- *
- * Specification: specs/v0.3/presence.md
+ * @notice Declaration layer tests for presence v0.3
+ * @dev Spec: specs/v0.3/presence.md
  */
 contract PresenceRegistryDeclarationTests is Test {
     IPresenceRegistry internal registry;
@@ -28,13 +24,12 @@ contract PresenceRegistryDeclarationTests is Test {
         epochRegistry = IEpochRegistry(address(new EpochRegistry(AUTHORITY)));
         registry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry)));
 
-        // Create active epoch
         vm.prank(AUTHORITY);
         epochRegistry.createEpoch(EPOCH_ID, block.timestamp, block.timestamp + 1 days);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        DECLARATION: Basic
+                            BASIC
     //////////////////////////////////////////////////////////////*/
 
     function test_declarePresence_fromNone() external {
@@ -55,7 +50,7 @@ contract PresenceRegistryDeclarationTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        DECLARATION: Idempotency
+                            IDEMPOTENCY
     //////////////////////////////////////////////////////////////*/
 
     function test_declarePresence_idempotent_whenDeclared() external {
@@ -66,11 +61,9 @@ contract PresenceRegistryDeclarationTests is Test {
         vm.prank(ACTOR);
         registry.declarePresence(ACTOR, EPOCH_ID);
 
-        // No event emitted on idempotent call
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(logs.length, 0);
 
-        // State unchanged
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Declared));
     }
 
@@ -82,16 +75,14 @@ contract PresenceRegistryDeclarationTests is Test {
         vm.prank(ACTOR);
         registry.declarePresence(ACTOR, EPOCH_ID);
 
-        // No event, no revert
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(logs.length, 0);
 
-        // State still Finalized
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Finalized));
     }
 
     /*//////////////////////////////////////////////////////////////
-                        DECLARATION: Errors
+                            ERRORS
     //////////////////////////////////////////////////////////////*/
 
     function test_declarePresence_reverts_invalidActor() external {
@@ -122,7 +113,6 @@ contract PresenceRegistryDeclarationTests is Test {
     }
 
     function test_declarePresence_reverts_epochScheduled() external {
-        // Create future epoch
         uint256 futureEpoch = 10;
         vm.prank(AUTHORITY);
         epochRegistry.createEpoch(futureEpoch, block.timestamp + 1 hours, block.timestamp + 2 hours);
@@ -133,7 +123,6 @@ contract PresenceRegistryDeclarationTests is Test {
     }
 
     function test_declarePresence_reverts_epochClosed() external {
-        // Warp to after epoch end
         vm.warp(block.timestamp + 2 days);
 
         vm.prank(ACTOR);
@@ -142,30 +131,26 @@ contract PresenceRegistryDeclarationTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FINALIZATION: From Declared
+                            FINALIZATION FROM DECLARED
     //////////////////////////////////////////////////////////////*/
 
     function test_finalizePresence_fromDeclared() external {
-        // Declare first
         vm.prank(ACTOR);
         registry.declarePresence(ACTOR, EPOCH_ID);
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Declared));
 
-        // Then finalize
         vm.prank(ACTOR);
         registry.finalizePresence(ACTOR, EPOCH_ID);
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Finalized));
     }
 
     function test_finalizePresence_fromNone_legacy() external {
-        // Direct finalization (legacy path)
         vm.prank(ACTOR);
         registry.finalizePresence(ACTOR, EPOCH_ID);
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Finalized));
     }
 
     function test_finalizePresence_reverts_epochNotActive() external {
-        // Warp to after epoch end
         vm.warp(block.timestamp + 2 days);
 
         vm.prank(ACTOR);
@@ -174,15 +159,14 @@ contract PresenceRegistryDeclarationTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FUZZ: Declaration
+                            FUZZ
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_declarePresence(address actor, uint256 epochId) external {
         vm.assume(actor != address(0));
         vm.assume(epochId != 0);
-        vm.assume(epochId != EPOCH_ID); // Don't conflict with setUp epoch
+        vm.assume(epochId != EPOCH_ID);
 
-        // Create active epoch
         vm.prank(AUTHORITY);
         epochRegistry.createEpoch(epochId, block.timestamp, block.timestamp + 1 days);
 
@@ -210,11 +194,10 @@ contract PresenceRegistryDeclarationTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        ERROR PRIORITY
+                            ERROR PRIORITY
     //////////////////////////////////////////////////////////////*/
 
     function test_errorPriority_invalidActorFirst() external {
-        // InvalidActor checked before EpochNotActive
         vm.expectRevert(IPresenceRegistry.InvalidActor.selector);
         registry.declarePresence(address(0), 999);
     }
@@ -222,14 +205,12 @@ contract PresenceRegistryDeclarationTests is Test {
     function test_errorPriority_unauthorizedBeforeEpoch() external {
         address attacker = address(0xBEEF);
 
-        // UnauthorizedActor checked before EpochNotActive
         vm.prank(attacker);
         vm.expectRevert(abi.encodeWithSelector(IPresenceRegistry.UnauthorizedActor.selector, attacker, ACTOR));
         registry.declarePresence(ACTOR, 999);
     }
 
     function test_errorPriority_invalidEpochBeforeNotActive() external {
-        // InvalidEpoch (epochId == 0) checked before EpochNotActive
         vm.prank(ACTOR);
         vm.expectRevert(abi.encodeWithSelector(IPresenceRegistry.InvalidEpoch.selector, 0));
         registry.declarePresence(ACTOR, 0);

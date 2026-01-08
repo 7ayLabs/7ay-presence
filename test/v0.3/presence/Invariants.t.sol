@@ -3,33 +3,25 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 
-import {PresenceRegistry} from "../contracts/core/PresenceRegistry.sol";
-import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
-import {EpochRegistry} from "../contracts/core/EpochRegistry.sol";
-import {IEpochRegistry} from "../contracts/interfaces/IEpochRegistry.sol";
+import {PresenceRegistry} from "../../../contracts/core/PresenceRegistry.sol";
+import {IPresenceRegistry} from "../../../contracts/interfaces/IPresenceRegistry.sol";
+import {EpochRegistry} from "../../../contracts/core/EpochRegistry.sol";
+import {IEpochRegistry} from "../../../contracts/interfaces/IEpochRegistry.sol";
 
 /**
  * @title PresenceRegistryHandler
  * @notice Handler contract for Foundry invariant testing
- *
- * @dev
- * This handler exposes actions that the fuzzer can call to mutate
- * protocol state. Ghost variables track state for invariant assertions.
- *
- * Pattern: The fuzzer calls handler functions randomly, then invariant
- * functions verify protocol properties hold regardless of call sequence.
+ * @dev Spec: specs/v0.3/presence.md
  */
 contract PresenceRegistryHandler is Test {
     IPresenceRegistry public registry;
     IEpochRegistry public epochRegistry;
     address public constant AUTHORITY = address(0xA077);
 
-    // Ghost variables for tracking state across fuzzer calls
     mapping(address => mapping(uint256 => bool)) public ghost_finalized;
     address[] public ghost_actors;
     uint256[] public ghost_epochs;
 
-    // Bounded actors and epochs for focused fuzzing
     address[] internal boundedActors;
     uint256[] internal boundedEpochs;
 
@@ -37,32 +29,24 @@ contract PresenceRegistryHandler is Test {
         registry = _registry;
         epochRegistry = _epochRegistry;
 
-        // Initialize bounded sets for focused invariant testing
         boundedActors.push(address(0xA11CE));
         boundedActors.push(address(0xB0B));
         boundedActors.push(address(0xCAFE));
 
-        // Use pre-created epochs (created in setUp)
         boundedEpochs.push(1);
         boundedEpochs.push(2);
         boundedEpochs.push(3);
     }
 
-    /**
-     * @notice Finalize presence with bounded inputs
-     * @dev Called by fuzzer to mutate state
-     */
     function finalizePresence(uint256 actorSeed, uint256 epochSeed) external {
         address actor = boundedActors[actorSeed % boundedActors.length];
         uint256 epochId = boundedEpochs[epochSeed % boundedEpochs.length];
 
-        // Track pre-state for monotonicity checks
         bool wasFinalized = ghost_finalized[actor][epochId];
 
         vm.prank(actor);
         registry.finalizePresence(actor, epochId);
 
-        // Update ghost state
         if (!wasFinalized) {
             ghost_finalized[actor][epochId] = true;
             ghost_actors.push(actor);
@@ -70,23 +54,17 @@ contract PresenceRegistryHandler is Test {
         }
     }
 
-    /**
-     * @notice Attempt unauthorized finalization (should always revert)
-     * @dev Verifies authorization invariant holds under fuzzing
-     */
     function finalizePresenceUnauthorized(uint256 callerSeed, uint256 actorSeed, uint256 epochSeed) external {
         address caller = boundedActors[callerSeed % boundedActors.length];
         address actor = boundedActors[actorSeed % boundedActors.length];
         uint256 epochId = boundedEpochs[epochSeed % boundedEpochs.length];
 
-        if (caller == actor) return; // Skip valid calls
+        if (caller == actor) return;
 
         vm.prank(caller);
         vm.expectRevert();
         registry.finalizePresence(actor, epochId);
     }
-
-    // === Getters for invariant assertions ===
 
     function getGhostActorsLength() external view returns (uint256) {
         return ghost_actors.length;
@@ -103,23 +81,8 @@ contract PresenceRegistryHandler is Test {
 
 /**
  * @title PresenceRegistryInvariants
- * @notice Protocol invariants for the 7ay PoP using Foundry invariant testing
- *
- * @dev
- * These invariants define the security, correctness, and semantic boundaries
- * of the MVP acceptance-only Presence protocol.
- *
- * Any invariant violation represents a protocol-level failure.
- *
- * Testing methodology:
- * - Handler contract mutates state via bounded random calls
- * - Invariant functions verify properties hold after each sequence
- * - Ghost variables track expected state for cross-reference
- *
- * Specification references:
- * - specs/presence.md (MVP profile)
- * - specs/model.md (conceptual model)
- * - specs/errors.md (error handling)
+ * @notice Protocol invariants for presence lifecycle
+ * @dev Spec: specs/v0.3/presence.md
  */
 contract PresenceRegistryInvariants is Test {
     IPresenceRegistry internal registry;
@@ -128,13 +91,9 @@ contract PresenceRegistryInvariants is Test {
     address internal constant AUTHORITY = address(0xA077);
 
     function setUp() external {
-        // Deploy EpochRegistry
         epochRegistry = IEpochRegistry(address(new EpochRegistry(AUTHORITY)));
-
-        // Deploy PresenceRegistry with epoch registry
         registry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry)));
 
-        // Create active epochs for bounded epochs
         uint256 start = block.timestamp;
         uint256 end = block.timestamp + 1 days;
         vm.startPrank(AUTHORITY);
@@ -145,22 +104,15 @@ contract PresenceRegistryInvariants is Test {
 
         handler = new PresenceRegistryHandler(registry, epochRegistry);
 
-        // Target only the handler for fuzzing
         targetContract(address(handler));
 
-        // Target specific functions for focused fuzzing
         bytes4[] memory selectors = new bytes4[](2);
         selectors[0] = PresenceRegistryHandler.finalizePresence.selector;
         selectors[1] = PresenceRegistryHandler.finalizePresenceUnauthorized.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        INVARIANT #1: Valid State Space
-      Only {None, Declared, Finalized} presence states are ever reachable.
-      Reference: specs/v0.3/presence.md
-    //////////////////////////////////////////////////////////////*/
-
+    /// @dev INV1: Valid state space {None, Declared, Finalized}
     function invariant_validStateSpace() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
@@ -170,96 +122,66 @@ contract PresenceRegistryInvariants is Test {
             IPresenceRegistry.PresenceState state = registry.presenceState(actor, epochId);
 
             assertTrue(
-                state == IPresenceRegistry.PresenceState.None
-                    || state == IPresenceRegistry.PresenceState.Declared
+                state == IPresenceRegistry.PresenceState.None || state == IPresenceRegistry.PresenceState.Declared
                     || state == IPresenceRegistry.PresenceState.Finalized,
-                "INV1: Invalid state detected"
+                "INV1: Invalid state"
             );
         }
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        INVARIANT #2: Finalization Monotonicity
-      Once finalized, a presence MUST remain finalized forever.
-      State transitions: None -> Finalized (one-way, irreversible)
-      Reference: specs/presence.md Section 7
-    //////////////////////////////////////////////////////////////*/
-
+    /// @dev INV2: Finalized = immutable
     function invariant_finalizationMonotonicity() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
             address actor = handler.getGhostActor(i);
             uint256 epochId = handler.getGhostEpoch(i);
 
-            // If ghost says finalized, on-chain state MUST be Finalized
             if (handler.ghost_finalized(actor, epochId)) {
                 assertEq(
                     uint256(registry.presenceState(actor, epochId)),
                     uint256(IPresenceRegistry.PresenceState.Finalized),
-                    "INV2: Finalized state reverted to None"
+                    "INV2: Finalized reverted"
                 );
             }
         }
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        INVARIANT #3: Actor Isolation
-      Finalizing for actorA MUST NOT affect actorB's state.
-      Reference: specs/model.md Section 5
-    //////////////////////////////////////////////////////////////*/
-
+    /// @dev INV3: Actor isolation
     function invariant_actorIsolation() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
             address actor = handler.getGhostActor(i);
             uint256 epochId = handler.getGhostEpoch(i);
 
-            // Verify state matches ghost tracking exactly
             bool ghostFinalized = handler.ghost_finalized(actor, epochId);
             IPresenceRegistry.PresenceState onChainState = registry.presenceState(actor, epochId);
 
             if (ghostFinalized) {
-                assertEq(
-                    uint256(onChainState),
-                    uint256(IPresenceRegistry.PresenceState.Finalized),
-                    "INV3: Actor state mismatch"
-                );
+                assertEq(uint256(onChainState), uint256(IPresenceRegistry.PresenceState.Finalized), "INV3: Mismatch");
             }
         }
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        INVARIANT #4: Epoch Isolation
-      Finalizing in epochA MUST NOT affect epochB's state.
-      Reference: specs/model.md Section 5
-    //////////////////////////////////////////////////////////////*/
-
+    /// @dev INV4: Epoch isolation
     function invariant_epochIsolation() external view {
-        // For each tracked finalization, verify other epochs unaffected
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
             address actor = handler.getGhostActor(i);
             uint256 epochId = handler.getGhostEpoch(i);
 
-            // Check adjacent epoch is unaffected (unless explicitly finalized)
             uint256 adjacentEpoch = epochId == type(uint256).max ? epochId - 1 : epochId + 1;
 
             if (!handler.ghost_finalized(actor, adjacentEpoch)) {
                 assertEq(
                     uint256(registry.presenceState(actor, adjacentEpoch)),
                     uint256(IPresenceRegistry.PresenceState.None),
-                    "INV4: Adjacent epoch unexpectedly affected"
+                    "INV4: Adjacent affected"
                 );
             }
         }
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        INVARIANT #5: Ghost Consistency
-      Ghost tracking MUST match on-chain state exactly.
-      This meta-invariant validates our testing methodology.
-    //////////////////////////////////////////////////////////////*/
-
+    /// @dev INV5: Ghost consistency
     function invariant_ghostConsistency() external view {
         uint256 len = handler.getGhostActorsLength();
         for (uint256 i = 0; i < len; i++) {
@@ -269,23 +191,14 @@ contract PresenceRegistryInvariants is Test {
             bool ghostFinalized = handler.ghost_finalized(actor, epochId);
             IPresenceRegistry.PresenceState onChainState = registry.presenceState(actor, epochId);
 
-            // Ghost and on-chain MUST be synchronized
-            assertEq(
-                ghostFinalized, onChainState == IPresenceRegistry.PresenceState.Finalized, "INV5: Ghost/on-chain desync"
-            );
+            assertEq(ghostFinalized, onChainState == IPresenceRegistry.PresenceState.Finalized, "INV5: Desync");
         }
     }
 }
 
 /**
  * @title PresenceRegistryPropertyTests
- * @notice Deterministic property tests (previously mislabeled as invariants)
- *
- * @dev
- * These tests verify specific protocol properties with fixed inputs.
- * They complement fuzz tests and invariant tests by covering explicit scenarios.
- *
- * Naming: test_* prefix indicates deterministic unit/property tests.
+ * @notice Deterministic property tests
  */
 contract PresenceRegistryPropertyTests is Test {
     IPresenceRegistry internal registry;
@@ -297,36 +210,23 @@ contract PresenceRegistryPropertyTests is Test {
     uint256 internal constant EPOCH_ID = 1;
 
     function setUp() external {
-        // Deploy EpochRegistry
         epochRegistry = IEpochRegistry(address(new EpochRegistry(AUTHORITY)));
-
-        // Deploy PresenceRegistry
         registry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry)));
 
-        // Create active epochs
         vm.startPrank(AUTHORITY);
         epochRegistry.createEpoch(1, block.timestamp, block.timestamp + 1 days);
         epochRegistry.createEpoch(2, block.timestamp, block.timestamp + 1 days);
         vm.stopPrank();
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        PROPERTY: Single Finalization Per Epoch
-      An actor MUST NOT have more than one finalized presence per epoch.
-    //////////////////////////////////////////////////////////////*/
-
     function test_singleFinalizedPresencePerEpoch() external {
-        // Pre-state: None
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.None));
 
-        // Finalize
         vm.prank(ACTOR);
         registry.finalizePresence(ACTOR, EPOCH_ID);
 
-        // Post-state: Finalized
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Finalized));
 
-        // State space is {None, Declared, Finalized}
         IPresenceRegistry.PresenceState state = registry.presenceState(ACTOR, EPOCH_ID);
         assertTrue(
             state == IPresenceRegistry.PresenceState.None || state == IPresenceRegistry.PresenceState.Declared
@@ -334,18 +234,12 @@ contract PresenceRegistryPropertyTests is Test {
         );
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        PROPERTY: Finalized Immutability
-      A finalized presence MUST NOT be reverted.
-    //////////////////////////////////////////////////////////////*/
-
     function test_finalizedPresenceIsImmutable() external {
         vm.prank(ACTOR);
         registry.finalizePresence(ACTOR, EPOCH_ID);
 
         IPresenceRegistry.PresenceState stateBefore = registry.presenceState(ACTOR, EPOCH_ID);
 
-        // Multiple finalize calls
         vm.prank(ACTOR);
         registry.finalizePresence(ACTOR, EPOCH_ID);
 
@@ -354,15 +248,9 @@ contract PresenceRegistryPropertyTests is Test {
 
         IPresenceRegistry.PresenceState stateAfter = registry.presenceState(ACTOR, EPOCH_ID);
 
-        // State unchanged
         assertEq(uint256(stateBefore), uint256(stateAfter));
         assertEq(uint256(stateAfter), uint256(IPresenceRegistry.PresenceState.Finalized));
     }
-
-    /*//////////////////////////////////////////////////////////////
-                        PROPERTY: Deterministic Finalization
-      Presence state transitions MUST be deterministic and idempotent.
-    //////////////////////////////////////////////////////////////*/
 
     function test_deterministicFinalization() external {
         vm.prank(ACTOR);
@@ -377,21 +265,11 @@ contract PresenceRegistryPropertyTests is Test {
         assertEq(uint256(state1), uint256(IPresenceRegistry.PresenceState.Finalized));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        PROPERTY: Self-Authorization Only
-      Only the actor itself MAY finalize its own presence.
-    //////////////////////////////////////////////////////////////*/
-
     function test_onlyActorCanFinalizePresence() external {
         vm.prank(ATTACKER);
         vm.expectRevert(abi.encodeWithSelector(IPresenceRegistry.UnauthorizedActor.selector, ATTACKER, ACTOR));
         registry.finalizePresence(ACTOR, EPOCH_ID);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                        PROPERTY: Actor Isolation
-      Finalizing presence for one actor MUST NOT affect any other actor.
-    //////////////////////////////////////////////////////////////*/
 
     function test_actorIsolation() external {
         address actor2 = address(0xB0B);
@@ -402,11 +280,6 @@ contract PresenceRegistryPropertyTests is Test {
         assertEq(uint256(registry.presenceState(ACTOR, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Finalized));
         assertEq(uint256(registry.presenceState(actor2, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.None));
     }
-
-    /*//////////////////////////////////////////////////////////////
-                        PROPERTY: Epoch Isolation
-      Finalizing presence in one epoch MUST NOT affect any other epoch.
-    //////////////////////////////////////////////////////////////*/
 
     function test_epochIsolation() external {
         vm.prank(ACTOR);

@@ -3,21 +3,15 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 
-import {PresenceRegistry} from "../contracts/core/PresenceRegistry.sol";
-import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
-import {EpochRegistry} from "../contracts/core/EpochRegistry.sol";
-import {IEpochRegistry} from "../contracts/interfaces/IEpochRegistry.sol";
+import {PresenceRegistry} from "../../../contracts/core/PresenceRegistry.sol";
+import {IPresenceRegistry} from "../../../contracts/interfaces/IPresenceRegistry.sol";
+import {EpochRegistry} from "../../../contracts/core/EpochRegistry.sol";
+import {IEpochRegistry} from "../../../contracts/interfaces/IEpochRegistry.sol";
 
 /**
  * @title PresenceRegistryEventTests
- * @notice Event emission tests for the 7ay PoP
- *
- * @dev
- * Event tests verify correct event emission per protocol specification.
- * Events are critical for off-chain indexing and auditability.
- *
- * Specification references:
- * - specs/v0.3/presence.md (Events)
+ * @notice Event emission tests for presence lifecycle
+ * @dev Spec: specs/v0.3/presence.md
  */
 contract PresenceRegistryEventTests is Test {
     IPresenceRegistry internal registry;
@@ -33,12 +27,10 @@ contract PresenceRegistryEventTests is Test {
         actor = address(0xA11CE);
         epochId = 1;
 
-        // Create active epoch
         vm.prank(AUTHORITY);
         epochRegistry.createEpoch(epochId, block.timestamp, block.timestamp + 1 days);
     }
 
-    /// @dev Helper to create active epoch
     function _createActiveEpoch(uint256 _epochId) internal {
         if (_epochId == 0 || epochRegistry.epochState(_epochId) != IEpochRegistry.EpochState.None) return;
         vm.prank(AUTHORITY);
@@ -46,8 +38,7 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: PresenceFinalized
-      MUST emit exactly once per (actor, epochId) state transition.
+                            FINALIZED EVENT
     //////////////////////////////////////////////////////////////*/
 
     function test_emitsPresenceFinalized() external {
@@ -57,11 +48,6 @@ contract PresenceRegistryEventTests is Test {
         vm.prank(actor);
         registry.finalizePresence(actor, epochId);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                        EVENT: Indexed Parameters
-      Event MUST have actor and epochId as indexed parameters.
-    //////////////////////////////////////////////////////////////*/
 
     function test_eventIndexedParameters() external {
         vm.recordLogs();
@@ -79,8 +65,7 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: Idempotent Call
-      MUST NOT emit event on idempotent (already finalized) call.
+                            IDEMPOTENCY
     //////////////////////////////////////////////////////////////*/
 
     function test_noEventOnIdempotentCall() external {
@@ -97,8 +82,7 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: Multiple Actors
-      Each actor finalization MUST emit its own event.
+                            MULTIPLE ACTORS
     //////////////////////////////////////////////////////////////*/
 
     function test_multipleActorsEmitSeparateEvents() external {
@@ -121,12 +105,10 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: Multiple Epochs
-      Each epoch finalization MUST emit its own event.
+                            MULTIPLE EPOCHS
     //////////////////////////////////////////////////////////////*/
 
     function test_multipleEpochsEmitSeparateEvents() external {
-        // Create second epoch (epoch 1 already created in setUp)
         _createActiveEpoch(2);
 
         vm.recordLogs();
@@ -145,8 +127,7 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: Fuzz Emission
-      Event MUST emit with correct parameters for any valid input.
+                            FUZZ
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_eventEmission(address fuzzActor, uint256 fuzzEpochId) external {
