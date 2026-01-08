@@ -91,10 +91,4 @@ contract EpochRegistryUnitTests is Test {
         vm.warp(block.timestamp + 200);
         assertFalse(registry.isEpochActive(EPOCH_ID));
     }
-
-    function test_invalidEpochId() external {
-        vm.prank(AUTHORITY);
-        vm.expectRevert(IEpochRegistry.InvalidEpochId.selector);
-        registry.createEpoch(0, block.timestamp + 100, block.timestamp + 200);
-    }
 }

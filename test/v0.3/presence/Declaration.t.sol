@@ -29,6 +29,15 @@ contract PresenceRegistryDeclarationTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
+                            CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    function test_constructorRejectsZeroEpochRegistry() external {
+        vm.expectRevert(IPresenceRegistry.InvalidEpochRegistry.selector);
+        new PresenceRegistry(IEpochRegistry(address(0)));
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             BASIC
     //////////////////////////////////////////////////////////////*/
 
