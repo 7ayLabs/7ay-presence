@@ -1,26 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {IEpochRegistry} from "./IEpochRegistry.sol";
+
 /**
  * @title IPresenceRegistry
  * @author 7ayLabs
- * @notice Canonical interface for the 7ay Proof of Presence (PoP) MVP
+ * @notice Canonical interface for the 7ay Proof of Presence (PoP) v0.3
  *
  * @dev
  * This interface defines the on-chain contract boundary for the
- * Proof of Presence MVP.
+ * Proof of Presence protocol with Declaration Layer.
  *
- * Scope (MVP):
- * - Acceptance-only presence finalization
+ * Scope (v0.3):
+ * - Presence declaration and finalization
+ * - On-chain epoch validation via IEpochRegistry
  * - Deterministic and idempotent behavior
- * - On-chain persistence limited to {None, Finalized}
+ * - On-chain persistence: {None, Declared, Finalized}
  *
- * Out of Scope (future versions):
- * - Presence lifecycle states (Declared, Validated, Expired, Slashed)
+ * Out of Scope:
+ * - Presence lifecycle states (Validated, Expired, Slashed)
  * - Validators, quorum, disputes, or slashing
  *
- * Any implementation claiming compliance with the 7ay PoP MVP
- * MUST implement this interface without deviation.
+ * Specification: specs/v0.3/presence.md
  */
 interface IPresenceRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -29,6 +31,7 @@ interface IPresenceRegistry {
 
     enum PresenceState {
         None,
+        Declared,
         Finalized
     }
 
@@ -48,10 +51,21 @@ interface IPresenceRegistry {
     /// @notice Raised when actor address is zero
     error InvalidActor();
 
+    /// @notice Raised when epoch is not in Active state
+    /// @param epochId The epoch identifier that is not active
+    error EpochNotActive(uint256 epochId);
+
+    /// @notice Raised when epoch registry address is invalid
+    error InvalidEpochRegistry();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Emitted when presence is declared
+    event PresenceDeclared(address indexed actor, uint256 indexed epochId);
+
+    /// @notice Emitted when presence is finalized
     event PresenceFinalized(address indexed actor, uint256 indexed epochId);
 
     /*//////////////////////////////////////////////////////////////
@@ -60,10 +74,15 @@ interface IPresenceRegistry {
 
     /**
      * @notice Returns the protocol version
-     *
-     * @return The semantic version string (e.g., "0.1.0")
+     * @return The semantic version string (e.g., "0.3.0")
      */
     function protocolVersion() external pure returns (string memory);
+
+    /**
+     * @notice Returns the epoch registry
+     * @return The IEpochRegistry contract
+     */
+    function epochRegistry() external view returns (IEpochRegistry);
 
     /**
      * @notice Returns the presence state for a given actor and epoch
@@ -89,14 +108,30 @@ interface IPresenceRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /**
+     * @notice Declare presence for an actor within a given epoch
+     *
+     * @dev
+     * Protocol rules (v0.3):
+     * - MUST be called by the actor itself
+     * - MUST validate epoch is Active via IEpochRegistry
+     * - MUST be deterministic and idempotent
+     * - MUST emit {PresenceDeclared} exactly once per (actor, epoch)
+     *
+     * @param actor   The actor declaring presence
+     * @param epochId The epoch identifier
+     */
+    function declarePresence(address actor, uint256 epochId) external;
+
+    /**
      * @notice Finalize presence for an actor within a given epoch
      *
      * @dev
-     * Protocol rules (MVP):
+     * Protocol rules (v0.3):
      * - MUST be called by the actor itself
+     * - MUST validate epoch is Active via IEpochRegistry
      * - MUST be deterministic and idempotent
-     * - MUST NOT modify any other actor or epoch state
      * - MUST emit {PresenceFinalized} exactly once per (actor, epoch)
+     * - Supports both None->Finalized (legacy) and Declared->Finalized paths
      *
      * @param actor   The actor whose presence is finalized
      * @param epochId The epoch identifier
