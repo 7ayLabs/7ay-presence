@@ -3,35 +3,42 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 
-import {PresenceRegistry} from "../contracts/core/PresenceRegistry.sol";
-import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
+import {PresenceRegistry} from "../../../contracts/core/PresenceRegistry.sol";
+import {IPresenceRegistry} from "../../../contracts/interfaces/IPresenceRegistry.sol";
+import {EpochRegistry} from "../../../contracts/core/EpochRegistry.sol";
+import {IEpochRegistry} from "../../../contracts/interfaces/IEpochRegistry.sol";
 
 /**
  * @title PresenceRegistryEventTests
- * @notice Event emission tests for the 7ay PoP
- *
- * @dev
- * Event tests verify correct event emission per protocol specification.
- * Events are critical for off-chain indexing and auditability.
- *
- * Specification references:
- * - specs/presence.md Section 6 (Events)
+ * @notice Event emission tests for presence lifecycle
+ * @dev Spec: specs/v0.3/presence.md
  */
 contract PresenceRegistryEventTests is Test {
     IPresenceRegistry internal registry;
+    IEpochRegistry internal epochRegistry;
+    address internal constant AUTHORITY = address(0xA077);
 
     address internal actor;
     uint256 internal epochId;
 
     function setUp() external {
-        registry = IPresenceRegistry(address(new PresenceRegistry()));
+        epochRegistry = IEpochRegistry(address(new EpochRegistry(AUTHORITY)));
+        registry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry)));
         actor = address(0xA11CE);
         epochId = 1;
+
+        vm.prank(AUTHORITY);
+        epochRegistry.createEpoch(epochId, block.timestamp, block.timestamp + 1 days);
+    }
+
+    function _createActiveEpoch(uint256 _epochId) internal {
+        if (_epochId == 0 || epochRegistry.epochState(_epochId) != IEpochRegistry.EpochState.None) return;
+        vm.prank(AUTHORITY);
+        epochRegistry.createEpoch(_epochId, block.timestamp, block.timestamp + 1 days);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: PresenceFinalized
-      MUST emit exactly once per (actor, epochId) state transition.
+                            FINALIZED EVENT
     //////////////////////////////////////////////////////////////*/
 
     function test_emitsPresenceFinalized() external {
@@ -41,11 +48,6 @@ contract PresenceRegistryEventTests is Test {
         vm.prank(actor);
         registry.finalizePresence(actor, epochId);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                        EVENT: Indexed Parameters
-      Event MUST have actor and epochId as indexed parameters.
-    //////////////////////////////////////////////////////////////*/
 
     function test_eventIndexedParameters() external {
         vm.recordLogs();
@@ -63,8 +65,7 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: Idempotent Call
-      MUST NOT emit event on idempotent (already finalized) call.
+                            IDEMPOTENCY
     //////////////////////////////////////////////////////////////*/
 
     function test_noEventOnIdempotentCall() external {
@@ -81,8 +82,7 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: Multiple Actors
-      Each actor finalization MUST emit its own event.
+                            MULTIPLE ACTORS
     //////////////////////////////////////////////////////////////*/
 
     function test_multipleActorsEmitSeparateEvents() external {
@@ -105,11 +105,12 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: Multiple Epochs
-      Each epoch finalization MUST emit its own event.
+                            MULTIPLE EPOCHS
     //////////////////////////////////////////////////////////////*/
 
     function test_multipleEpochsEmitSeparateEvents() external {
+        _createActiveEpoch(2);
+
         vm.recordLogs();
 
         vm.prank(actor);
@@ -126,13 +127,14 @@ contract PresenceRegistryEventTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EVENT: Fuzz Emission
-      Event MUST emit with correct parameters for any valid input.
+                            FUZZ
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_eventEmission(address fuzzActor, uint256 fuzzEpochId) external {
         vm.assume(fuzzActor != address(0));
         vm.assume(fuzzEpochId != 0);
+
+        _createActiveEpoch(fuzzEpochId);
 
         vm.expectEmit(true, true, false, true);
         emit IPresenceRegistry.PresenceFinalized(fuzzActor, fuzzEpochId);

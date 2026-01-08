@@ -2,28 +2,26 @@
 pragma solidity ^0.8.28;
 
 import {IPresenceRegistry} from "../interfaces/IPresenceRegistry.sol";
+import {IEpochRegistry} from "../interfaces/IEpochRegistry.sol";
 
 /**
  * @title PresenceRegistry
  * @author 7ayLabs
- * @notice Canonical on-chain registry for Proof of Presence (PoP) — MVP
+ * @notice Canonical on-chain registry for Proof of Presence (PoP) v0.3
  *
  * @dev
- * This contract is the canonical MVP implementation of the
- * Proof of Presence protocol.
+ * Reference implementation with Declaration Layer.
  *
- * Scope (MVP):
- * - Acceptance-only presence finalization
- * - Deterministic and idempotent behavior
- * - On-chain persistence limited to {None, Finalized}
+ * Scope (v0.3):
+ * - Presence declaration and finalization
+ * - On-chain epoch validation via IEpochRegistry
+ * - On-chain persistence: {None, Declared, Finalized}
  *
  * Out of Scope:
- * - Presence lifecycle states (Declared, Validated, Expired, Slashed)
+ * - Presence lifecycle states (Validated, Expired, Slashed)
  * - Validation logic, disputes, slashing, or penalties
- * - Epoch lifecycle management
  *
- * All lifecycle and validation logic MUST live off-chain
- * or in future protocol versions.
+ * Specification: specs/v0.3/presence.md
  */
 contract PresenceRegistry is IPresenceRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -31,14 +29,32 @@ contract PresenceRegistry is IPresenceRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Protocol version following semantic versioning
-    string public constant PROTOCOL_VERSION = "0.1.0";
+    string public constant PROTOCOL_VERSION = "0.3.0";
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    /// @inheritdoc IPresenceRegistry
+    IEpochRegistry public immutable override epochRegistry;
+
     /// @notice actor => epochId => presence state
     mapping(address => mapping(uint256 => PresenceState)) private _presence;
+
+    /*//////////////////////////////////////////////////////////////
+                              CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Initializes the registry with an epoch registry
+     * @param _epochRegistry The epoch registry contract address
+     */
+    constructor(IEpochRegistry _epochRegistry) {
+        if (address(_epochRegistry) == address(0)) {
+            revert InvalidEpochRegistry();
+        }
+        epochRegistry = _epochRegistry;
+    }
 
     /*//////////////////////////////////////////////////////////////
                             READ OPERATIONS
@@ -60,13 +76,14 @@ contract PresenceRegistry is IPresenceRegistry {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        PRESENCE FINALIZATION
+                        PRESENCE LIFECYCLE
     //////////////////////////////////////////////////////////////*/
 
     /**
      * @inheritdoc IPresenceRegistry
      */
-    function finalizePresence(address actor, uint256 epochId) external override {
+    function declarePresence(address actor, uint256 epochId) external override {
+        // Error priority: InvalidActor > UnauthorizedActor > InvalidEpoch > EpochNotActive
         if (actor == address(0)) {
             revert InvalidActor();
         }
@@ -79,11 +96,48 @@ contract PresenceRegistry is IPresenceRegistry {
             revert InvalidEpoch(epochId);
         }
 
+        if (!epochRegistry.isEpochActive(epochId)) {
+            revert EpochNotActive(epochId);
+        }
+
+        // Idempotent: already Declared or Finalized = silent return
+        PresenceState currentState = _presence[actor][epochId];
+        if (currentState == PresenceState.Declared || currentState == PresenceState.Finalized) {
+            return;
+        }
+
+        _presence[actor][epochId] = PresenceState.Declared;
+
+        emit PresenceDeclared(actor, epochId);
+    }
+
+    /**
+     * @inheritdoc IPresenceRegistry
+     */
+    function finalizePresence(address actor, uint256 epochId) external override {
+        // Error priority: InvalidActor > UnauthorizedActor > InvalidEpoch > EpochNotActive
+        if (actor == address(0)) {
+            revert InvalidActor();
+        }
+
+        if (actor != msg.sender) {
+            revert UnauthorizedActor(msg.sender, actor);
+        }
+
+        if (epochId == 0) {
+            revert InvalidEpoch(epochId);
+        }
+
+        if (!epochRegistry.isEpochActive(epochId)) {
+            revert EpochNotActive(epochId);
+        }
+
         // Idempotent finalization
         if (_presence[actor][epochId] == PresenceState.Finalized) {
             return;
         }
 
+        // Supports both None->Finalized (legacy) and Declared->Finalized
         _presence[actor][epochId] = PresenceState.Finalized;
 
         emit PresenceFinalized(actor, epochId);

@@ -3,37 +3,52 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 
-import {PresenceRegistry} from "../contracts/core/PresenceRegistry.sol";
-import {IPresenceRegistry} from "../contracts/interfaces/IPresenceRegistry.sol";
+import {PresenceRegistry} from "../../../contracts/core/PresenceRegistry.sol";
+import {IPresenceRegistry} from "../../../contracts/interfaces/IPresenceRegistry.sol";
+import {EpochRegistry} from "../../../contracts/core/EpochRegistry.sol";
+import {IEpochRegistry} from "../../../contracts/interfaces/IEpochRegistry.sol";
 
 /**
  * @title PresenceRegistryFuzzTests
- * @notice Property-based fuzz tests for the 7ay PoP
- *
- * @dev
- * Fuzz tests verify protocol properties with randomized inputs.
- * These tests complement invariant tests by exploring edge cases
- * that fixed values might miss.
- *
- * Specification references:
- * - specs/presence.md (MVP profile)
- * - specs/errors.md (error handling)
+ * @notice Property-based fuzz tests for presence lifecycle
+ * @dev Spec: specs/v0.3/presence.md
  */
 contract PresenceRegistryFuzzTests is Test {
     IPresenceRegistry internal registry;
+    IEpochRegistry internal epochRegistry;
+    address internal constant AUTHORITY = address(0xA077);
+
+    uint256 internal constant ACTIVE_EPOCH = 1;
 
     function setUp() external {
-        registry = IPresenceRegistry(address(new PresenceRegistry()));
+        epochRegistry = IEpochRegistry(address(new EpochRegistry(AUTHORITY)));
+        registry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry)));
+
+        uint256 start = block.timestamp;
+        uint256 end = block.timestamp + 1 days;
+        vm.prank(AUTHORITY);
+        epochRegistry.createEpoch(ACTIVE_EPOCH, start, end);
+    }
+
+    function _ensureActiveEpoch(uint256 epochId) internal {
+        if (epochId == 0 || epochId == ACTIVE_EPOCH) return;
+        if (epochRegistry.epochState(epochId) != IEpochRegistry.EpochState.None) return;
+
+        uint256 start = block.timestamp;
+        uint256 end = block.timestamp + 1 days;
+        vm.prank(AUTHORITY);
+        epochRegistry.createEpoch(epochId, start, end);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FUZZ: Finalization
-      Any valid (actor, epochId) pair MUST result in Finalized state.
+                            FINALIZATION
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_finalizePresence(address fuzzActor, uint256 fuzzEpochId) external {
         vm.assume(fuzzActor != address(0));
         vm.assume(fuzzEpochId != 0);
+
+        _ensureActiveEpoch(fuzzEpochId);
 
         vm.prank(fuzzActor);
         registry.finalizePresence(fuzzActor, fuzzEpochId);
@@ -44,8 +59,7 @@ contract PresenceRegistryFuzzTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FUZZ: Actor Isolation
-      Finalizing for actorA MUST NOT affect actorB for any epoch.
+                            ISOLATION
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_actorIsolation(address actorA, address actorB, uint256 fuzzEpochId) external {
@@ -53,6 +67,8 @@ contract PresenceRegistryFuzzTests is Test {
         vm.assume(actorB != address(0));
         vm.assume(actorA != actorB);
         vm.assume(fuzzEpochId != 0);
+
+        _ensureActiveEpoch(fuzzEpochId);
 
         vm.prank(actorA);
         registry.finalizePresence(actorA, fuzzEpochId);
@@ -63,16 +79,14 @@ contract PresenceRegistryFuzzTests is Test {
         assertEq(uint256(registry.presenceState(actorB, fuzzEpochId)), uint256(IPresenceRegistry.PresenceState.None));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        FUZZ: Epoch Isolation
-      Finalizing in epochA MUST NOT affect epochB for same actor.
-    //////////////////////////////////////////////////////////////*/
-
     function testFuzz_epochIsolation(address fuzzActor, uint256 epochA, uint256 epochB) external {
         vm.assume(fuzzActor != address(0));
         vm.assume(epochA != 0);
         vm.assume(epochB != 0);
         vm.assume(epochA != epochB);
+
+        _ensureActiveEpoch(epochA);
+        _ensureActiveEpoch(epochB);
 
         vm.prank(fuzzActor);
         registry.finalizePresence(fuzzActor, epochA);
@@ -82,13 +96,14 @@ contract PresenceRegistryFuzzTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FUZZ: Idempotency
-      Multiple calls with same (actor, epochId) MUST be idempotent.
+                            IDEMPOTENCY
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_idempotency(address fuzzActor, uint256 fuzzEpochId) external {
         vm.assume(fuzzActor != address(0));
         vm.assume(fuzzEpochId != 0);
+
+        _ensureActiveEpoch(fuzzEpochId);
 
         vm.prank(fuzzActor);
         registry.finalizePresence(fuzzActor, fuzzEpochId);
@@ -105,8 +120,7 @@ contract PresenceRegistryFuzzTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FUZZ: Authorization
-      Non-actor callers MUST be rejected for any (actor, epochId).
+                            AUTHORIZATION
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_unauthorizedActor(address caller, address targetActor, uint256 fuzzEpochId) external {
@@ -115,14 +129,15 @@ contract PresenceRegistryFuzzTests is Test {
         vm.assume(caller != targetActor);
         vm.assume(fuzzEpochId != 0);
 
+        _ensureActiveEpoch(fuzzEpochId);
+
         vm.prank(caller);
         vm.expectRevert(abi.encodeWithSelector(IPresenceRegistry.UnauthorizedActor.selector, caller, targetActor));
         registry.finalizePresence(targetActor, fuzzEpochId);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FUZZ: Invalid Epoch
-      Epoch 0 MUST be rejected for any actor.
+                            ERRORS
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_invalidEpoch(address fuzzActor) external {
@@ -133,11 +148,6 @@ contract PresenceRegistryFuzzTests is Test {
         registry.finalizePresence(fuzzActor, 0);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        FUZZ: Invalid Actor
-      address(0) MUST be rejected as actor.
-    //////////////////////////////////////////////////////////////*/
-
     function testFuzz_invalidActor(uint256 fuzzEpochId) external {
         vm.assume(fuzzEpochId != 0);
 
@@ -147,13 +157,9 @@ contract PresenceRegistryFuzzTests is Test {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        FUZZ: Error Priority
-      Error priority MUST follow specs/errors.md Section 4.2:
-      1. InvalidActor  2. UnauthorizedActor  3. InvalidEpoch
+                            ERROR PRIORITY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice UnauthorizedActor MUST be checked before InvalidEpoch
-    /// @dev When caller != actor AND epochId == 0, UnauthorizedActor takes priority
     function testFuzz_errorPriority_unauthorizedBeforeInvalidEpoch(address caller, address targetActor) external {
         vm.assume(caller != address(0));
         vm.assume(targetActor != address(0));
@@ -161,40 +167,31 @@ contract PresenceRegistryFuzzTests is Test {
 
         vm.prank(caller);
         vm.expectRevert(abi.encodeWithSelector(IPresenceRegistry.UnauthorizedActor.selector, caller, targetActor));
-        // epochId = 0 is also invalid, but UnauthorizedActor must revert first
         registry.finalizePresence(targetActor, 0);
     }
 
-    /// @notice InvalidActor MUST be checked before UnauthorizedActor
-    /// @dev When actor == address(0) AND caller != actor, InvalidActor takes priority
     function testFuzz_errorPriority_invalidActorBeforeUnauthorized(address caller) external {
         vm.assume(caller != address(0));
 
         vm.prank(caller);
         vm.expectRevert(IPresenceRegistry.InvalidActor.selector);
-        // caller != address(0), so UnauthorizedActor would also apply,
-        // but InvalidActor must revert first per spec
         registry.finalizePresence(address(0), 1);
     }
 
-    /// @notice InvalidActor MUST be checked before InvalidEpoch
-    /// @dev When actor == address(0) AND epochId == 0, InvalidActor takes priority
     function test_errorPriority_invalidActorBeforeInvalidEpoch() external {
         address caller = address(0xCAFE);
 
         vm.prank(caller);
         vm.expectRevert(IPresenceRegistry.InvalidActor.selector);
-        // Both actor == address(0) AND epochId == 0, InvalidActor must revert first
         registry.finalizePresence(address(0), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
-                        TEST: Protocol Version
-      Protocol version MUST be readable.
+                            VERSION
     //////////////////////////////////////////////////////////////*/
 
     function test_protocolVersion() external view {
         string memory version = registry.protocolVersion();
-        assertEq(version, "0.1.0");
+        assertEq(version, "0.3.0");
     }
 }
