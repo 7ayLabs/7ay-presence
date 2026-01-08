@@ -150,7 +150,9 @@ contract EpochRegistryInvariants is Test {
 
             if (epoch.finalized) {
                 assertEq(
-                    uint256(registry.epochState(epochId)), uint256(IEpochRegistry.EpochState.Finalized), "INV4: Finalized"
+                    uint256(registry.epochState(epochId)),
+                    uint256(IEpochRegistry.EpochState.Finalized),
+                    "INV4: Finalized"
                 );
                 continue;
             }

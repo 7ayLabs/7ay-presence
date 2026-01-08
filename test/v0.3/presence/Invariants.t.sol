@@ -233,7 +233,9 @@ contract PresenceRegistryInvariants is Test {
             IPresenceRegistry.PresenceState onChainState = registry.presenceState(actor, epochId);
 
             if (ghostFinalized) {
-                assertEq(uint256(onChainState), uint256(IPresenceRegistry.PresenceState.Finalized), "INV6: Finalized desync");
+                assertEq(
+                    uint256(onChainState), uint256(IPresenceRegistry.PresenceState.Finalized), "INV6: Finalized desync"
+                );
             } else if (ghostDeclared) {
                 assertTrue(
                     onChainState == IPresenceRegistry.PresenceState.Declared
