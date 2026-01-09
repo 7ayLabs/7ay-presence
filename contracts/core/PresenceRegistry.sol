@@ -370,6 +370,9 @@ contract PresenceRegistry is IPresenceRegistry {
 
     /**
      * @inheritdoc IPresenceRegistry
+     * @dev Resolution requires quorum votes. If quorum not met, returns silently without
+     *      state change (idempotent). Ties (votesFor == votesAgainst) result in rejection,
+     *      preserving the actor's presence - the challenger must prove their case.
      */
     function resolveDispute(address actor, uint256 epochId) external override {
         // Error priority: InvalidActor > InvalidEpoch > DisputeNotFound > DisputeNotPending
@@ -423,6 +426,9 @@ contract PresenceRegistry is IPresenceRegistry {
      * @notice Checks if current time is within dispute window for an epoch
      * @param epochId The epoch identifier
      * @return True if within dispute window
+     * @dev Design note: Active epochs allow disputes indefinitely. This is intentional as
+     *      epochs should transition to Closed state via normal lifecycle. If an epoch is
+     *      stuck in Active state, off-chain orchestration should handle the transition.
      */
     function _isWithinDisputeWindow(uint256 epochId) internal view returns (bool) {
         IEpochRegistry.EpochState state = epochRegistry.epochState(epochId);

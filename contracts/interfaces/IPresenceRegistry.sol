@@ -199,6 +199,7 @@ interface IPresenceRegistry {
     event PresenceValidated(address indexed actor, uint256 indexed epochId, uint256 validatorCount);
 
     /// @notice Emitted when presence is slashed
+    /// @dev Named with "Event" suffix to avoid collision with PresenceSlashed error
     /// @param actor The actor address
     /// @param epochId The epoch identifier
     /// @param challenger Address that initiated the dispute
