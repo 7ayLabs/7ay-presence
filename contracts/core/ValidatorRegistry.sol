@@ -174,9 +174,6 @@ contract ValidatorRegistry is IValidatorRegistry {
 
     /**
      * @inheritdoc IValidatorRegistry
-     * @dev Design note: Validators cannot be removed when at minimum count (3). This is
-     *      intentional for security. If a validator at minimum count is compromised, the
-     *      authority must first add a replacement validator before removing the compromised one.
      */
     function removeValidator(address validator) external override onlyAuthority {
         // Validate address
