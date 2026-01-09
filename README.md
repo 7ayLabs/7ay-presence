@@ -81,6 +81,6 @@ This project is licensed under the **Business Source License 1.1**.
 - **Research & education**: Permitted
 - **Commercial use**: Requires explicit license from 7ayLabs
 
-On **January 1, 2029**, the license automatically converts to **Apache License 2.0**.
+On **January 8, 2030**, the license automatically converts to **Apache License 2.0**.
 
-See [LICENSE](LICENSE) for full terms. For commercial licensing inquiries, contact 7ayLabs.
+
