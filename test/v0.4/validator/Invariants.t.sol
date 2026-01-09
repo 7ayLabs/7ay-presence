@@ -143,9 +143,7 @@ contract ValidatorRegistryInvariants is Test {
             address validator = handler.getGhostValidator(i);
             if (handler.ghost_removed(validator)) {
                 IValidatorRegistry.ValidatorStatus status = registry.validatorStatus(validator);
-                assertEq(
-                    uint256(status), uint256(IValidatorRegistry.ValidatorStatus.Removed), "INV3: Removed changed"
-                );
+                assertEq(uint256(status), uint256(IValidatorRegistry.ValidatorStatus.Removed), "INV3: Removed changed");
             }
         }
     }

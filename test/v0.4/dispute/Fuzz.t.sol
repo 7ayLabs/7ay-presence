@@ -136,7 +136,9 @@ contract DisputeFuzzTests is Test {
             assertEq(uint256(registry.presenceState(actor, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Slashed));
         } else {
             assertEq(uint256(dispute.status), uint256(IPresenceRegistry.DisputeStatus.Rejected));
-            assertEq(uint256(registry.presenceState(actor, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Declared));
+            assertEq(
+                uint256(registry.presenceState(actor, EPOCH_ID)), uint256(IPresenceRegistry.PresenceState.Declared)
+            );
         }
     }
 

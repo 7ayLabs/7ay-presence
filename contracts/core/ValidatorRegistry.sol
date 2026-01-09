@@ -163,11 +163,8 @@ contract ValidatorRegistry is IValidatorRegistry {
         }
 
         // Register validator
-        _validators[validator] = Validator({
-            status: ValidatorStatus.Active,
-            registeredAt: block.timestamp,
-            removedAt: 0
-        });
+        _validators[validator] =
+            Validator({status: ValidatorStatus.Active, registeredAt: block.timestamp, removedAt: 0});
 
         _validatorList.push(validator);
         _activeValidatorCount++;

@@ -203,15 +203,11 @@ contract DisputeInvariants is Test {
 
             if (ghostStatus == IPresenceRegistry.DisputeStatus.Upheld) {
                 assertEq(
-                    uint256(dispute.status),
-                    uint256(IPresenceRegistry.DisputeStatus.Upheld),
-                    "INV2: Upheld desync"
+                    uint256(dispute.status), uint256(IPresenceRegistry.DisputeStatus.Upheld), "INV2: Upheld desync"
                 );
             } else if (ghostStatus == IPresenceRegistry.DisputeStatus.Rejected) {
                 assertEq(
-                    uint256(dispute.status),
-                    uint256(IPresenceRegistry.DisputeStatus.Rejected),
-                    "INV2: Rejected desync"
+                    uint256(dispute.status), uint256(IPresenceRegistry.DisputeStatus.Rejected), "INV2: Rejected desync"
                 );
             }
         }

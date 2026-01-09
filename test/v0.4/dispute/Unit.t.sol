@@ -212,7 +212,9 @@ contract DisputeUnitTests is Test {
 
         vm.prank(VALIDATOR_1);
         vm.expectRevert(
-            abi.encodeWithSelector(IPresenceRegistry.ValidatorAlreadyVotedOnDispute.selector, VALIDATOR_1, ACTOR, EPOCH_ID)
+            abi.encodeWithSelector(
+                IPresenceRegistry.ValidatorAlreadyVotedOnDispute.selector, VALIDATOR_1, ACTOR, EPOCH_ID
+            )
         );
         registry.voteOnDispute(ACTOR, EPOCH_ID, false);
     }

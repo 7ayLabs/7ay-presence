@@ -116,22 +116,24 @@ contract PresenceRegistry is IPresenceRegistry {
     /**
      * @inheritdoc IPresenceRegistry
      */
-    function hasValidatorVotedForPresence(
-        address validator,
-        address actor,
-        uint256 epochId
-    ) external view override returns (bool) {
+    function hasValidatorVotedForPresence(address validator, address actor, uint256 epochId)
+        external
+        view
+        override
+        returns (bool)
+    {
         return _presenceVotes[actor][epochId][validator];
     }
 
     /**
      * @inheritdoc IPresenceRegistry
      */
-    function hasValidatorVotedOnDispute(
-        address validator,
-        address actor,
-        uint256 epochId
-    ) external view override returns (bool) {
+    function hasValidatorVotedOnDispute(address validator, address actor, uint256 epochId)
+        external
+        view
+        override
+        returns (bool)
+    {
         return _disputeVotes[actor][epochId][validator];
     }
 

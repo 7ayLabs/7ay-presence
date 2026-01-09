@@ -185,7 +185,11 @@ interface IPresenceRegistry {
     /// @param currentVotes Current vote count
     /// @param requiredVotes Required votes for quorum
     event PresenceValidationVote(
-        address indexed actor, uint256 indexed epochId, address indexed validator, uint256 currentVotes, uint256 requiredVotes
+        address indexed actor,
+        uint256 indexed epochId,
+        address indexed validator,
+        uint256 currentVotes,
+        uint256 requiredVotes
     );
 
     /// @notice Emitted when presence reaches validation quorum
@@ -205,7 +209,9 @@ interface IPresenceRegistry {
     /// @param epochId The epoch identifier
     /// @param challenger Address initiating the dispute
     /// @param evidenceHash Hash of evidence
-    event DisputeInitiated(address indexed actor, uint256 indexed epochId, address indexed challenger, bytes32 evidenceHash);
+    event DisputeInitiated(
+        address indexed actor, uint256 indexed epochId, address indexed challenger, bytes32 evidenceHash
+    );
 
     /// @notice Emitted when a validator votes on a dispute
     /// @param actor The actor address
@@ -287,7 +293,10 @@ interface IPresenceRegistry {
      * @param epochId The epoch identifier
      * @return True if validator has voted
      */
-    function hasValidatorVotedForPresence(address validator, address actor, uint256 epochId) external view returns (bool);
+    function hasValidatorVotedForPresence(address validator, address actor, uint256 epochId)
+        external
+        view
+        returns (bool);
 
     /**
      * @notice Checks if a validator has voted on a dispute

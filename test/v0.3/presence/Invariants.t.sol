@@ -76,13 +76,22 @@ contract PresenceRegistryHandler is Test {
 
         // Validate with quorum
         vm.prank(VALIDATOR_1);
-        try registry.validatePresence(actor, epochId) {} catch { return; }
+        try registry.validatePresence(actor, epochId) {}
+        catch {
+            return;
+        }
 
         vm.prank(VALIDATOR_2);
-        try registry.validatePresence(actor, epochId) {} catch { return; }
+        try registry.validatePresence(actor, epochId) {}
+        catch {
+            return;
+        }
 
         vm.prank(VALIDATOR_3);
-        try registry.validatePresence(actor, epochId) {} catch { return; }
+        try registry.validatePresence(actor, epochId) {}
+        catch {
+            return;
+        }
 
         ghost_validated[actor][epochId] = true;
     }
@@ -363,7 +372,8 @@ contract PresenceRegistryPropertyTests is Test {
         IPresenceRegistry.PresenceState state = registry.presenceState(ACTOR, EPOCH_ID);
         assertTrue(
             state == IPresenceRegistry.PresenceState.None || state == IPresenceRegistry.PresenceState.Declared
-                || state == IPresenceRegistry.PresenceState.Validated || state == IPresenceRegistry.PresenceState.Finalized
+                || state == IPresenceRegistry.PresenceState.Validated
+                || state == IPresenceRegistry.PresenceState.Finalized
                 || state == IPresenceRegistry.PresenceState.Slashed
         );
     }
