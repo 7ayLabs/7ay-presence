@@ -57,14 +57,18 @@ Post-epoch, only aggregate statistics remain.
 
 ## 3. Audit Hooks
 
+> **Note:** Types referenced below (`EpochCapability`, `EpochState`) are defined
+> in ephemeral.md v0.5 (forward reference). `EpochState` values (Scheduled,
+> Active, Closed, Finalized) are defined in epoch.md v0.2.
+
 ### 3.1 Epoch Lifecycle Hooks
 
 **H1: Epoch Created with Capability**
 ```
 HOOK epoch_created_with_capability(
-  epoch_id: uint256,
+  epochId: uint256,
   capability: EpochCapability,
-  policy_hash: bytes32,
+  policyHash: bytes32,
   timestamp: uint256
 )
 ```
@@ -72,9 +76,9 @@ HOOK epoch_created_with_capability(
 **H2: Epoch State Transition**
 ```
 HOOK epoch_state_changed(
-  epoch_id: uint256,
-  from_state: EpochState,
-  to_state: EpochState,
+  epochId: uint256,
+  fromState: EpochState,
+  toState: EpochState,
   timestamp: uint256
 )
 ```
@@ -85,7 +89,7 @@ HOOK epoch_state_changed(
 ```
 HOOK actor_data_access_granted(
   actor: address,
-  epoch_id: uint256,
+  epochId: uint256,
   timestamp: uint256
 )
 ```
@@ -94,32 +98,47 @@ HOOK actor_data_access_granted(
 ```
 HOOK actor_data_access_revoked(
   actor: address,
-  epoch_id: uint256,
+  epochId: uint256,
   reason: AccessRevocationReason,
   timestamp: uint256
 )
 ```
+
+**AccessRevocationReason** values:
+- `EPOCH_CLOSED` — Epoch transitioned out of Active state
+- `ACTOR_SLASHED` — Actor was slashed
+- `ACTOR_EXITED` — Actor explicitly exited
 
 ### 3.3 Data Lifecycle Hooks (Metadata Only)
 
 **H5: Data Activity Observed**
 ```
 HOOK data_activity(
-  epoch_id: uint256,
-  activity_type: ActivityType,  // CREATED, PROPAGATED, DESTROYED
-  actor_count: uint256,         // Not specific actors
+  epochId: uint256,
+  activityType: ActivityType,
+  actorCount: uint256,
   timestamp: uint256
 )
 ```
 
+**ActivityType** values:
+- `CREATED` — New ephemeral data created
+- `PROPAGATED` — Ephemeral data propagated to actors
+- `DESTROYED` — Ephemeral data destroyed
+
 **H6: Data Destruction Confirmed**
 ```
 HOOK data_destruction_confirmed(
-  epoch_id: uint256,
-  destruction_method: DestructionMethod,
+  epochId: uint256,
+  destructionMethod: DestructionMethod,
   timestamp: uint256
 )
 ```
+
+**DestructionMethod** values:
+- `AUTOMATIC` — Destroyed on epoch termination
+- `MANUAL` — Explicitly destroyed by actor
+- `EMERGENCY` — Emergency destruction triggered
 
 ---
 
@@ -151,7 +170,9 @@ Compliance systems MUST NOT record:
 | Message counts per actor | Alice: 5 msgs | NO |
 | Data size | 1024 bytes | NO* |
 
-*May be permitted with explicit consent or legal requirement.
+*May be permitted with explicit consent or legal requirement. Data size can
+enable traffic analysis when combined with timing metadata, so collection
+SHOULD be limited to coarse-grained or aggregate metrics.
 
 ---
 
@@ -325,9 +346,9 @@ This specification is additive:
 
 ## 12. References
 
-- epoch.md v0.2 — Epoch lifecycle
+- epoch.md v0.2 — Epoch lifecycle and events (EpochCreated, EpochActivated, etc.)
 - presence.md v0.4 — Presence state machine
-- Events section — Existing event definitions
+- ephemeral.md v0.5 — EpochCapability enum (forward reference)
 
 ---
 
