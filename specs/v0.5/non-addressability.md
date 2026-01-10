@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Non-Addressability of Ephemeral Data
-**Version:** v0.5.5
+**Version:** v0.5.5 (subversion within v0.5 specification track)
 **Status:** Draft
 **Scope:** Specification only (no behavioral changes)
 **Depends on:** epoch.md v0.2, presence.md v0.4
@@ -177,7 +177,7 @@ FOR ALL ephemeral data d:
 
 ```
 FOR ALL references r, contexts c1, c2 where c1 ≠ c2:
-  resolve(r, c1) = d IMPLIES resolve(r, c2) = ⊥
+  resolve(r, c1) = d IMPLIES resolve(r, c2) = undefined
 ```
 
 ### 6.3 INV-ADDR3: No Post-Termination Access
