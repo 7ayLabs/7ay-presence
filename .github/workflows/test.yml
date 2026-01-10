@@ -2,9 +2,9 @@ name: Test
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'feat/*-epic']
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, 'feat/*-epic']
   workflow_dispatch:
 
 permissions:
