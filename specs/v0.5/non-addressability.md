@@ -39,9 +39,13 @@ from outside its immediate execution context.
 In formal terms:
 ```
 FOR ALL ephemeral data d:
-  NOT EXISTS identifier i:
-    resolve(i) → d outside context(d)
+  FOR ALL identifiers i:
+    FOR ALL contexts c where c ∉ context(d):
+      resolve(i, c) ≠ d
 ```
+
+This states that no identifier can resolve to ephemeral data from outside
+its originating context.
 
 ### 2.2 Context Boundary
 
@@ -162,6 +166,11 @@ Non-identifying temporal markers are permitted:
   timestamp = now()  // Not a stable reference
 ```
 
+These MUST be:
+- Scoped to the immediate processing context only
+- Not persisted or used for later retrieval
+- Not usable to address data (no "get message at sequence 5" operations)
+
 ---
 
 ## 6. Invariants
@@ -206,6 +215,15 @@ Ephemeral data content MUST NOT appear in:
 - Debug output
 - Metrics payloads
 - Error reports
+
+Implementations MAY log **metadata** about ephemeral data, provided that:
+- It does not include the ephemeral data content itself
+- It cannot be used to reconstruct the ephemeral data
+- It does not create stable identifiers
+
+Permitted metadata examples: data type, approximate size, timestamps,
+non-stable correlation IDs scoped to a single request. Error messages
+SHOULD use generic placeholders (e.g., `<ephemeral-data-redacted>`).
 
 ### 7.3 Memory Management
 
