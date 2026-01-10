@@ -140,7 +140,7 @@ contract ValidatorRegistryUnitTests is Test {
         _addMinimumValidators();
 
         vm.prank(AUTHORITY);
-        vm.expectRevert(abi.encodeWithSelector(IValidatorRegistry.InsufficientValidators.selector, 3, 3));
+        vm.expectRevert(abi.encodeWithSelector(IValidatorRegistry.InsufficientValidators.selector, 2, 3));
         registry.removeValidator(VALIDATOR_1);
     }
 

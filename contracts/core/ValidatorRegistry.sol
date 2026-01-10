@@ -151,10 +151,14 @@ contract ValidatorRegistry is IValidatorRegistry {
     /**
      * @inheritdoc IValidatorRegistry
      */
-    function addValidator(address validator) external override onlyAuthority {
-        // Validate address
+    function addValidator(address validator) external override {
+        // Error priority: InvalidValidator > UnauthorizedValidatorAuthority > ValidatorAlreadyExists
         if (validator == address(0)) {
             revert InvalidValidator();
+        }
+
+        if (msg.sender != validatorAuthority) {
+            revert UnauthorizedValidatorAuthority(msg.sender, validatorAuthority);
         }
 
         // Check not already registered
@@ -175,10 +179,14 @@ contract ValidatorRegistry is IValidatorRegistry {
     /**
      * @inheritdoc IValidatorRegistry
      */
-    function removeValidator(address validator) external override onlyAuthority {
-        // Validate address
+    function removeValidator(address validator) external override {
+        // Error priority: InvalidValidator > UnauthorizedValidatorAuthority > ValidatorNotFound > ValidatorNotActive > InsufficientValidators
         if (validator == address(0)) {
             revert InvalidValidator();
+        }
+
+        if (msg.sender != validatorAuthority) {
+            revert UnauthorizedValidatorAuthority(msg.sender, validatorAuthority);
         }
 
         // Check validator exists and is active
@@ -191,7 +199,7 @@ contract ValidatorRegistry is IValidatorRegistry {
 
         // Check minimum validators
         if (_activeValidatorCount - 1 < MINIMUM_VALIDATORS) {
-            revert InsufficientValidators(_activeValidatorCount, MINIMUM_VALIDATORS);
+            revert InsufficientValidators(_activeValidatorCount - 1, MINIMUM_VALIDATORS);
         }
 
         // Remove validator

@@ -123,21 +123,18 @@ contract ValidatorRegistryFuzzTests is Test {
     function testFuzz_addValidator_errorPriority_invalidFirst(address caller) external {
         vm.assume(caller != address(0) && caller != AUTHORITY);
 
-        // InvalidValidator should be checked first
+        // InvalidValidator (priority 1) should be checked before UnauthorizedValidatorAuthority (priority 2)
         vm.prank(caller);
-        vm.expectRevert(
-            abi.encodeWithSelector(IValidatorRegistry.UnauthorizedValidatorAuthority.selector, caller, AUTHORITY)
-        );
+        vm.expectRevert(IValidatorRegistry.InvalidValidator.selector);
         registry.addValidator(address(0));
     }
 
     function testFuzz_removeValidator_errorPriority_invalidFirst(address caller) external {
         vm.assume(caller != address(0) && caller != AUTHORITY);
 
+        // InvalidValidator (priority 1) should be checked before UnauthorizedValidatorAuthority (priority 2)
         vm.prank(caller);
-        vm.expectRevert(
-            abi.encodeWithSelector(IValidatorRegistry.UnauthorizedValidatorAuthority.selector, caller, AUTHORITY)
-        );
+        vm.expectRevert(IValidatorRegistry.InvalidValidator.selector);
         registry.removeValidator(address(0));
     }
 

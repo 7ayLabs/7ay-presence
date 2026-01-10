@@ -176,7 +176,7 @@ function quorumSize() returns (uint256) {
 
 | Active Validators | Threshold | Quorum Size |
 |-------------------|-----------|-------------|
-| 3 | 67% | 2 |
+| 3 | 67% | 3 |
 | 5 | 67% | 4 |
 | 10 | 67% | 7 |
 | 3 | 51% | 2 |
