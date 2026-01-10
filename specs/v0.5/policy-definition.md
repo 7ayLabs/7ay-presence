@@ -77,7 +77,7 @@ Field types:
 On-chain representation is limited to a 32-byte hash:
 
 ```
-bytes32 dataPolicyHash = keccak256(policyJSON)
+bytes32 dataPolicyHash = keccak256(policyDocument)
 ```
 
 Semantics:
@@ -118,7 +118,7 @@ An EpochDataPolicy is not required for all epochs:
 The presence of an EpochDataPolicy is determined by epoch capability.
 
 > **Note:** The `EpochCapability` enum (`PresenceOnly`, `PresenceWithSignals`,
-> `PresenceWithEphemeralData`) is formally defined in `ephemeral.md v0.5`.
+> `PresenceWithEphemeralData`) is defined in `ephemeral.md v0.5` (forward reference).
 
 | Capability | Policy Required |
 |------------|-----------------|
