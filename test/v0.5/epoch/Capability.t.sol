@@ -178,7 +178,9 @@ contract EpochCapabilityTests is Test {
         // InvalidEpochBounds has priority 3
         vm.prank(address(0xBAD)); // Wrong caller, but InvalidEpochBounds comes first
         vm.expectRevert(
-            abi.encodeWithSelector(IEpochRegistry.InvalidEpochBounds.selector, block.timestamp + 1 days, block.timestamp)
+            abi.encodeWithSelector(
+                IEpochRegistry.InvalidEpochBounds.selector, block.timestamp + 1 days, block.timestamp
+            )
         );
         registry.createEpochWithCapability(
             1,

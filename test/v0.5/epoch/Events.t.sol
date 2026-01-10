@@ -28,7 +28,9 @@ contract EpochCapabilityEventsTests is Test {
         uint256 endTime = block.timestamp + 1 days;
 
         vm.expectEmit(true, false, false, true);
-        emit IEpochRegistry.EpochCreatedV2(1, startTime, endTime, IEpochRegistry.EpochCapability.PresenceOnly, bytes32(0));
+        emit IEpochRegistry.EpochCreatedV2(
+            1, startTime, endTime, IEpochRegistry.EpochCapability.PresenceOnly, bytes32(0)
+        );
 
         vm.prank(AUTHORITY);
         registry.createEpoch(1, startTime, endTime);
@@ -40,7 +42,9 @@ contract EpochCapabilityEventsTests is Test {
 
         // EpochCreatedV2 first
         vm.expectEmit(true, false, false, true);
-        emit IEpochRegistry.EpochCreatedV2(1, startTime, endTime, IEpochRegistry.EpochCapability.PresenceOnly, bytes32(0));
+        emit IEpochRegistry.EpochCreatedV2(
+            1, startTime, endTime, IEpochRegistry.EpochCapability.PresenceOnly, bytes32(0)
+        );
 
         // EpochCreated second (legacy)
         vm.expectEmit(true, false, false, true);
@@ -55,10 +59,14 @@ contract EpochCapabilityEventsTests is Test {
         uint256 endTime = block.timestamp + 1 days;
 
         vm.expectEmit(true, false, false, true);
-        emit IEpochRegistry.EpochCreatedV2(1, startTime, endTime, IEpochRegistry.EpochCapability.PresenceOnly, bytes32(0));
+        emit IEpochRegistry.EpochCreatedV2(
+            1, startTime, endTime, IEpochRegistry.EpochCapability.PresenceOnly, bytes32(0)
+        );
 
         vm.prank(AUTHORITY);
-        registry.createEpochWithCapability(1, startTime, endTime, IEpochRegistry.EpochCapability.PresenceOnly, bytes32(0));
+        registry.createEpochWithCapability(
+            1, startTime, endTime, IEpochRegistry.EpochCapability.PresenceOnly, bytes32(0)
+        );
     }
 
     function test_createEpochWithCapability_presenceWithSignals_emitsEpochCreatedV2() external {
@@ -129,10 +137,7 @@ contract EpochCapabilityEventsTests is Test {
         // Find EpochCreatedV2 event
         bool found = false;
         for (uint256 i = 0; i < entries.length; i++) {
-            if (
-                entries[i].topics[0]
-                    == keccak256("EpochCreatedV2(uint256,uint256,uint256,uint8,bytes32)")
-            ) {
+            if (entries[i].topics[0] == keccak256("EpochCreatedV2(uint256,uint256,uint256,uint8,bytes32)")) {
                 // First topic after selector is indexed epochId
                 assertEq(entries[i].topics[1], bytes32(uint256(1)));
                 found = true;
@@ -159,10 +164,7 @@ contract EpochCapabilityEventsTests is Test {
 
         // Find EpochCreatedV2 event and verify parameters
         for (uint256 i = 0; i < entries.length; i++) {
-            if (
-                entries[i].topics[0]
-                    == keccak256("EpochCreatedV2(uint256,uint256,uint256,uint8,bytes32)")
-            ) {
+            if (entries[i].topics[0] == keccak256("EpochCreatedV2(uint256,uint256,uint256,uint8,bytes32)")) {
                 // Indexed epochId
                 assertEq(entries[i].topics[1], bytes32(uint256(42)));
 

@@ -150,11 +150,7 @@ interface IEpochRegistry {
     /// @param capability The epoch's capability level
     /// @param dataPolicyHash Hash of the data policy (bytes32(0) if not required)
     event EpochCreatedV2(
-        uint256 indexed epochId,
-        uint256 startTime,
-        uint256 endTime,
-        EpochCapability capability,
-        bytes32 dataPolicyHash
+        uint256 indexed epochId, uint256 startTime, uint256 endTime, EpochCapability capability, bytes32 dataPolicyHash
     );
 
     /*//////////////////////////////////////////////////////////////

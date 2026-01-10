@@ -23,11 +23,9 @@ contract EpochCapabilityFuzzTests is Test {
                     CAPABILITY FUZZ TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzz_createEpochWithCapability_presenceOnly(
-        uint256 epochId,
-        uint256 startOffset,
-        uint256 duration
-    ) external {
+    function testFuzz_createEpochWithCapability_presenceOnly(uint256 epochId, uint256 startOffset, uint256 duration)
+        external
+    {
         vm.assume(epochId != 0);
         vm.assume(startOffset < 365 days);
         vm.assume(duration > 0 && duration < 365 days);
@@ -63,7 +61,9 @@ contract EpochCapabilityFuzzTests is Test {
             epochId, startTime, endTime, IEpochRegistry.EpochCapability.PresenceWithSignals, optionalHash
         );
 
-        assertEq(uint256(registry.epochCapability(epochId)), uint256(IEpochRegistry.EpochCapability.PresenceWithSignals));
+        assertEq(
+            uint256(registry.epochCapability(epochId)), uint256(IEpochRegistry.EpochCapability.PresenceWithSignals)
+        );
         assertEq(registry.epochDataPolicyHash(epochId), optionalHash);
         assertFalse(registry.supportsEphemeralData(epochId));
     }
@@ -88,7 +88,8 @@ contract EpochCapabilityFuzzTests is Test {
         );
 
         assertEq(
-            uint256(registry.epochCapability(epochId)), uint256(IEpochRegistry.EpochCapability.PresenceWithEphemeralData)
+            uint256(registry.epochCapability(epochId)),
+            uint256(IEpochRegistry.EpochCapability.PresenceWithEphemeralData)
         );
         assertEq(registry.epochDataPolicyHash(epochId), policyHash);
         assertTrue(registry.supportsEphemeralData(epochId));
@@ -152,16 +153,17 @@ contract EpochCapabilityFuzzTests is Test {
         // The check exists for defense-in-depth but can't be triggered via normal calls
 
         vm.prank(caller);
-        (bool success,) = address(registry).call(
-            abi.encodeWithSelector(
-                IEpochRegistry.createEpochWithCapability.selector,
-                1,
-                block.timestamp,
-                block.timestamp + 1 days,
-                invalidCapability,
-                bytes32(0)
-            )
-        );
+        (bool success,) = address(registry)
+            .call(
+                abi.encodeWithSelector(
+                    IEpochRegistry.createEpochWithCapability.selector,
+                    1,
+                    block.timestamp,
+                    block.timestamp + 1 days,
+                    invalidCapability,
+                    bytes32(0)
+                )
+            );
 
         // Call should fail (EVM enum validation)
         assertFalse(success, "Call should fail with invalid enum");
