@@ -12,6 +12,10 @@
 This specification defines the **commitment semantics** for EpochDataPolicy
 in the 7ay Presence Protocol.
 
+**EpochDataPolicy** refers to the immutable policy hash committed for a given
+epoch, identifying the off-chain policy document that governs ephemeral data
+rules. See policy-definition.md v0.5.1 for the full definition.
+
 Commitment is the act of irrevocably binding a policy hash to an epoch.
 
 This document defines:
@@ -89,7 +93,9 @@ Implications:
 
 ### 4.1 Capability-Based Requirements
 
-Policy commitment requirements depend on epoch capability:
+Policy commitment requirements depend on epoch capability.
+
+> **Note:** The `EpochCapability` enum is defined in ephemeral.md v0.5 (forward reference).
 
 | Capability | Commitment | Requirement |
 |------------|------------|-------------|
@@ -172,7 +178,7 @@ Off-chain systems verify:
 ## 8. Non-Goals
 
 This specification explicitly does NOT define:
-- Policy document structure (see v0.5.1)
+- Policy document structure (see policy-definition.md v0.5.1)
 - Commitment storage implementation
 - Policy enforcement mechanisms
 - Off-chain document distribution
@@ -190,7 +196,8 @@ This specification is additive:
 
 ## 10. References
 
-- v0.5.1 policy-definition.md — Policy structure
+- policy-definition.md v0.5.1 — Policy structure (forward reference)
+- ephemeral.md v0.5 — EpochCapability enum (forward reference)
 - epoch.md v0.2 — Epoch lifecycle
 - presence.md v0.4 — Presence state machine
 
