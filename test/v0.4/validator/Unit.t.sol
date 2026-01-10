@@ -197,7 +197,7 @@ contract ValidatorRegistryUnitTests is Test {
         _addMinimumValidators();
 
         // 3 * 67 / 100 = 2.01 -> ceil = 3
-        // Using (3 * 67 + 99) / 100 = (201 + 99) / 100 = 3
+        // Using (3 * 67 + 99) / 100 = 300 / 100 = 3
         assertEq(registry.quorumSize(), 3);
     }
 
@@ -210,7 +210,7 @@ contract ValidatorRegistryUnitTests is Test {
         vm.stopPrank();
 
         // 5 * 67 / 100 = 3.35 -> ceil = 4
-        // Using (5 * 67 + 99) / 100 = (335 + 99) / 100 = 4
+        // Using (5 * 67 + 99) / 100 = 434 / 100 = 4
         assertEq(registry.quorumSize(), 4);
     }
 
