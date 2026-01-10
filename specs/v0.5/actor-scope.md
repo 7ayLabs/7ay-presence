@@ -53,8 +53,13 @@ Ephemeral data access requires **declared presence**:
 | None | NO |
 | Declared | YES (if epoch supports) |
 | Validated | YES (if epoch supports) |
-| Finalized | NO (epoch no longer Active) |
+| Finalized | NO |
 | Slashed | NO |
+
+> **Note:** Access denial in Finalized state follows from the base requirement
+> in §2.1: ephemeral data access requires `epoch.state == Active`. The presence
+> state itself does not determine the epoch state; access is revoked when the
+> epoch transitions out of Active.
 
 ### 2.3 Actor Types
 
@@ -132,7 +137,7 @@ Access is acquired when:
 acquire_access(actor, epoch):
   REQUIRE: epoch.capability == PresenceWithEphemeralData
   REQUIRE: epoch.state == Active
-  REQUIRE: presence(actor, epoch.id).state >= Declared
+  REQUIRE: presence(actor, epoch.id).state IN {Declared, Validated}
   GRANT: ephemeral_data_access(actor, epoch.id)
 ```
 
@@ -154,7 +159,7 @@ Access is revoked when ANY of:
 
 ## 5. Exit Invalidation
 
-### 5.1 INV-SCOPE1: Exit Invalidation
+### 5.1 Rule: Exit Invalidation (see INV-SCOPE4)
 
 **Actors leaving an epoch MUST immediately lose ephemeral data access.**
 
