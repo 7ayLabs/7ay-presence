@@ -12,7 +12,7 @@ Commercial use requires a separate license from 7ayLabs.
 
 ## Current Version
 
-The protocol is currently at **v0.4**, which includes the complete presence lifecycle with validators, disputes, and slashing.
+The protocol is currently at **v0.5**, which adds the Ephemeral Data Governance Layer with epoch capabilities and policy commitments.
 
 | Version | Status | Scope |
 |---------|--------|-------|
@@ -20,6 +20,7 @@ The protocol is currently at **v0.4**, which includes the complete presence life
 | v0.2 | Complete | Epoch lifecycle (Scheduled → Active → Closed → Finalized) |
 | v0.3 | Complete | Declaration layer (declarePresence, Declared state) |
 | v0.4 | Complete | Validators, quorum validation, disputes, slashing |
+| v0.5 | Complete | Ephemeral Data Governance (EpochCapability, EpochDataPolicy) |
 
 ## Usage
 
@@ -27,7 +28,17 @@ The protocol is currently at **v0.4**, which includes the complete presence life
 
 The canonical protocol documents are organized by version:
 
-**v0.4 (Current)**
+**v0.5 (Current)**
+- [specs/v0.5/ephemeral.md](specs/v0.5/ephemeral.md) — Ephemeral Data Governance Layer
+- [specs/v0.5/policy-definition.md](specs/v0.5/policy-definition.md) — EpochDataPolicy formal definition
+- [specs/v0.5/policy-commitment.md](specs/v0.5/policy-commitment.md) — Policy commitment semantics
+- [specs/v0.5/capability-immutability.md](specs/v0.5/capability-immutability.md) — EpochCapability immutability
+- [specs/v0.5/actor-scope.md](specs/v0.5/actor-scope.md) — Actor scope rules
+- [specs/v0.5/non-addressability.md](specs/v0.5/non-addressability.md) — Non-addressability of ephemeral data
+- [specs/v0.5/presence-causality.md](specs/v0.5/presence-causality.md) — Presence-data causality
+- [specs/v0.5/compliance-hooks.md](specs/v0.5/compliance-hooks.md) — Compliance and audit hooks
+
+**v0.4**
 - [specs/v0.4/presence.md](specs/v0.4/presence.md) — Presence lifecycle with validation, disputes, slashing
 - [specs/v0.4/validator.md](specs/v0.4/validator.md) — Validator management and quorum mechanics
 - [specs/v0.4/errors.md](specs/v0.4/errors.md) — Error catalog with priority ordering
@@ -76,6 +87,12 @@ forge test --match-contract ValidatorRegistryUnitTests
 
 **Slashing** — The permanent invalidation of a presence due to a successful dispute. Slashed is a terminal state that cannot be reversed.
 
+**EpochCapability** — Defines what an epoch supports: `PresenceOnly` (default), `PresenceWithSignals`, or `PresenceWithEphemeralData`. Immutable once set at epoch creation.
+
+**EpochDataPolicy** — A bytes32 hash representing governance rules for ephemeral data. Required for epochs with `PresenceWithEphemeralData` capability. The hash references an off-chain JSON policy document.
+
+**Ephemeral Data** — Temporary, non-addressable data that exists only during an epoch's Active state. Cannot be persisted, referenced externally, or influence presence state.
+
 ## Invariants
 
 ### Presence Invariants
@@ -97,6 +114,13 @@ forge test --match-contract ValidatorRegistryUnitTests
 12. Declaration and validation only during Active epochs
 13. Finalization only after epoch is Closed
 
+### Ephemeral Data Invariants (v0.5)
+14. Ephemeral Data MUST NOT exist outside Active epoch
+15. Ephemeral Data MUST NOT be readable after epoch termination
+16. Actors leaving epoch MUST immediately lose Ephemeral Data access
+17. Ephemeral Data MUST NOT influence presence state (orthogonality)
+18. Ephemeral Data MUST NOT be persisted or finalized
+
 ## Versions
 
 Protocol versions are available in the `specs/` directory:
@@ -104,7 +128,8 @@ Protocol versions are available in the `specs/` directory:
 - `specs/v0.1/` — MVP presence specification
 - `specs/v0.2/` — Epoch lifecycle specification
 - `specs/v0.3/` — Declaration layer specification
-- `specs/v0.4/` — Validators, disputes, slashing (current)
+- `specs/v0.4/` — Validators, disputes, slashing
+- `specs/v0.5/` — Ephemeral Data Governance (current)
 
 ## License
 
