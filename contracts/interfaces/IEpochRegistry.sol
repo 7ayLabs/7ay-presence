@@ -20,10 +20,15 @@ pragma solidity ^0.8.28;
  * - Closed: Epoch ended but not finalized (block.timestamp >= endTime)
  * - Finalized: Epoch permanently sealed (terminal state)
  *
+ * Epoch Capabilities (v0.5):
+ * - PresenceOnly: Basic presence tracking (default, v0.4 compatible)
+ * - PresenceWithSignals: Presence + signal emission
+ * - PresenceWithEphemeralData: Full ephemeral data support (requires policy hash)
+ *
  * Any implementation claiming compliance with the 7ay Epoch specification
  * MUST implement this interface without deviation.
  *
- * Specification reference: specs/epoch.md v0.2
+ * Specification reference: specs/v0.2/epoch.md, specs/v0.5/ephemeral.md
  */
 interface IEpochRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -40,6 +45,16 @@ interface IEpochRegistry {
         Active, // 2 - Accepting presence finalization
         Closed, // 3 - Ended but not finalized
         Finalized // 4 - Permanently sealed
+    }
+
+    /**
+     * @notice Epoch capability enumeration (v0.5)
+     * @dev Defines what features an epoch supports beyond basic presence
+     */
+    enum EpochCapability {
+        PresenceOnly, // 0 - Default, v0.4 compatible
+        PresenceWithSignals, // 1 - Presence + signal emission
+        PresenceWithEphemeralData // 2 - Full ephemeral data support
     }
 
     /**
@@ -97,6 +112,13 @@ interface IEpochRegistry {
     /// @notice Raised when epoch authority address is invalid (zero address)
     error InvalidEpochAuthority();
 
+    /// @notice Raised when capability value is invalid (v0.5)
+    error InvalidCapability();
+
+    /// @notice Raised when data policy hash is required but not provided (v0.5)
+    /// @dev Required only when capability == PresenceWithEphemeralData
+    error InvalidDataPolicyHash();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -120,6 +142,20 @@ interface IEpochRegistry {
     /// @notice Emitted when an epoch is permanently sealed
     /// @param epochId The epoch identifier
     event EpochFinalized(uint256 indexed epochId);
+
+    /// @notice Emitted when a new epoch is created with capability (v0.5)
+    /// @param epochId The unique epoch identifier
+    /// @param startTime Unix timestamp when epoch becomes active
+    /// @param endTime Unix timestamp when epoch closes
+    /// @param capability The epoch's capability level
+    /// @param dataPolicyHash Hash of the data policy (bytes32(0) if not required)
+    event EpochCreatedV2(
+        uint256 indexed epochId,
+        uint256 startTime,
+        uint256 endTime,
+        EpochCapability capability,
+        bytes32 dataPolicyHash
+    );
 
     /*//////////////////////////////////////////////////////////////
                             READ OPERATIONS
@@ -178,6 +214,36 @@ interface IEpochRegistry {
      */
     function epochBounds(uint256 epochId) external view returns (uint256 startTime, uint256 endTime);
 
+    /**
+     * @notice Returns the capability of an epoch (v0.5)
+     *
+     * @dev Returns PresenceOnly (0) for non-existent epochs
+     *
+     * @param epochId The epoch identifier
+     * @return capability The epoch's capability level
+     */
+    function epochCapability(uint256 epochId) external view returns (EpochCapability capability);
+
+    /**
+     * @notice Returns the data policy hash of an epoch (v0.5)
+     *
+     * @dev Returns bytes32(0) for non-existent epochs or epochs without policy
+     *
+     * @param epochId The epoch identifier
+     * @return hash The data policy hash
+     */
+    function epochDataPolicyHash(uint256 epochId) external view returns (bytes32 hash);
+
+    /**
+     * @notice Checks if epoch supports ephemeral data (v0.5)
+     *
+     * @dev Returns true only if epoch exists AND capability == PresenceWithEphemeralData
+     *
+     * @param epochId The epoch identifier
+     * @return supported True if ephemeral data is supported
+     */
+    function supportsEphemeralData(uint256 epochId) external view returns (bool supported);
+
     /*//////////////////////////////////////////////////////////////
                             EPOCH LIFECYCLE
     //////////////////////////////////////////////////////////////*/
@@ -198,6 +264,41 @@ interface IEpochRegistry {
      * @param endTime Unix timestamp when epoch closes
      */
     function createEpoch(uint256 epochId, uint256 startTime, uint256 endTime) external;
+
+    /**
+     * @notice Creates a new epoch with capability and optional data policy (v0.5)
+     *
+     * @dev
+     * Protocol rules:
+     * - MUST reject if epochId == 0
+     * - MUST reject if epoch already exists
+     * - MUST reject if startTime >= endTime
+     * - MUST reject if capability is invalid (> PresenceWithEphemeralData)
+     * - MUST reject if capability == PresenceWithEphemeralData && dataPolicyHash == 0
+     * - MUST reject if caller is not epoch authority
+     * - MUST emit {EpochCreatedV2} and {EpochCreated}
+     *
+     * Error priority (inline, no modifiers):
+     * 1. InvalidEpochId
+     * 2. EpochAlreadyExists
+     * 3. InvalidEpochBounds
+     * 4. InvalidCapability
+     * 5. InvalidDataPolicyHash
+     * 6. UnauthorizedEpochAuthority
+     *
+     * @param epochId The unique epoch identifier
+     * @param startTime Unix timestamp when epoch becomes active
+     * @param endTime Unix timestamp when epoch closes
+     * @param capability The epoch's capability level
+     * @param dataPolicyHash Hash of off-chain data policy (bytes32(0) if not required)
+     */
+    function createEpochWithCapability(
+        uint256 epochId,
+        uint256 startTime,
+        uint256 endTime,
+        EpochCapability capability,
+        bytes32 dataPolicyHash
+    ) external;
 
     /**
      * @notice Permanently seals an epoch
