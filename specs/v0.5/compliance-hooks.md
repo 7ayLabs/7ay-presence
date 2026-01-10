@@ -197,10 +197,13 @@ PATTERN policy_verification:
 
 ### 6.1 On-Chain Integration
 
-On-chain hooks are limited to events:
-- `EpochCreatedV2` (existing)
-- `EpochStateChanged` (existing)
-- No new on-chain hooks required
+On-chain hooks are limited to existing events from epoch.md v0.2:
+- `EpochCreated` — Epoch creation
+- `EpochActivated` — Epoch becomes active
+- `EpochClosed` — Epoch closed
+- `EpochFinalized` — Epoch finalized
+
+No new on-chain hooks required for compliance.
 
 ### 6.2 Off-Chain Integration
 
@@ -220,7 +223,7 @@ Off-chain hooks are observational:
 │  ════════                    ════════                       │
 │                                                             │
 │  Events ──────────────────► Event Listeners                 │
-│  (EpochCreatedV2)            (Metadata only)                │
+│  (EpochCreated, etc.)        (Metadata only)                │
 │                                                             │
 │  State ───────────────────► State Observers                 │
 │  (epochCapability)           (Query results)                │
