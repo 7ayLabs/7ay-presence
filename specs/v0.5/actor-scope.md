@@ -44,6 +44,11 @@ epoch.state == Active
 
 All three conditions MUST hold simultaneously.
 
+> **Note:** The pseudocode uses conceptual notation. `hasPresence()` represents
+> checking that an actor has a presence state other than None for the epoch.
+> `PresenceWithEphemeralData` is an `EpochCapability` value defined in
+> ephemeral.md v0.5 (forward reference).
+
 ### 2.2 Presence Requirement
 
 Ephemeral data access requires **declared presence**:
@@ -57,9 +62,9 @@ Ephemeral data access requires **declared presence**:
 | Slashed | NO |
 
 > **Note:** Access denial in Finalized state follows from the base requirement
-> in §2.1: ephemeral data access requires `epoch.state == Active`. The presence
-> state itself does not determine the epoch state; access is revoked when the
-> epoch transitions out of Active.
+> in Section 2.1: ephemeral data access requires `epoch.state == Active`. The
+> presence state itself does not determine the epoch state; access is revoked
+> when the epoch transitions out of Active.
 
 ### 2.3 Actor Types
 
