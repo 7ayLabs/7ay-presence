@@ -143,14 +143,13 @@ contract EpochCapabilityFuzzTests is Test {
         );
     }
 
-    function testFuzz_invalidCapability_causesRevert(address caller, uint8 invalidCapability) external {
+    /// @notice Tests that invalid enum values fail at ABI decoding level
+    /// @dev Solidity validates enum values during ABI decoding, causing Panic(0x21).
+    ///      The contract's InvalidCapability check exists for defense-in-depth but
+    ///      cannot be triggered via normal function calls.
+    function testFuzz_invalidEnumValue_causesAbiDecodingFailure(address caller, uint8 invalidCapability) external {
         vm.assume(caller != address(0));
         vm.assume(invalidCapability > 2);
-
-        // Note: In Solidity 0.8+, the EVM validates enum values during ABI decoding
-        // Invalid enum values cause a Panic(0x21) - "enum conversion error"
-        // This happens before our InvalidCapability check can run
-        // The check exists for defense-in-depth but can't be triggered via normal calls
 
         vm.prank(caller);
         (bool success,) = address(registry)
@@ -165,8 +164,8 @@ contract EpochCapabilityFuzzTests is Test {
                 )
             );
 
-        // Call should fail (EVM enum validation)
-        assertFalse(success, "Call should fail with invalid enum");
+        // Call should fail (EVM enum validation at ABI decoding)
+        assertFalse(success, "Call should fail with invalid enum value");
     }
 
     function testFuzz_errorPriority_invalidDataPolicyHashBeforeAuth(address caller) external {

@@ -191,24 +191,10 @@ contract EpochCapabilityTests is Test {
         );
     }
 
-    function test_createEpochWithCapability_errorPriority_4_invalidCapability() external {
-        // InvalidCapability has priority 4
-        // Note: We can't directly test invalid enum values from Solidity
-        // This test verifies the check exists by using valid bounds
-        // The actual invalid capability check is tested via fuzz tests
-
-        // Instead, verify that all valid capabilities work
-        vm.prank(AUTHORITY);
-        registry.createEpochWithCapability(
-            1,
-            block.timestamp,
-            block.timestamp + 1 days,
-            IEpochRegistry.EpochCapability.PresenceWithEphemeralData,
-            keccak256("policy")
-        );
-
-        // The capability validation is tested in Fuzz.t.sol using raw calls
-    }
+    // NOTE: Error priority 4 (InvalidCapability) cannot be tested from Solidity.
+    // Solidity validates enum values at ABI decoding, causing Panic(0x21) before
+    // the contract's check runs. See testFuzz_invalidEnumValue_causesAbiDecodingFailure
+    // in Fuzz.t.sol for verification that invalid enum values are rejected.
 
     function test_createEpochWithCapability_errorPriority_5_invalidDataPolicyHash() external {
         // InvalidDataPolicyHash has priority 5
