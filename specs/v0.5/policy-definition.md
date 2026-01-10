@@ -48,19 +48,29 @@ The full policy document is a JSON structure containing governance parameters:
 ```json
 {
   "version": "1.0.0",
-  "epochId": "<bound-epoch-id>",
+  "epochId": 42,
   "constraints": {
-    "maxPayloadSize": "<bytes>",
-    "maxTTL": "<seconds>",
-    "propagationScope": "<scope-value>",
-    "encryptionRequired": "<boolean>"
+    "maxPayloadSize": 1024,
+    "maxTTL": 3600,
+    "propagationScope": "global",
+    "encryptionRequired": true
   },
   "actorRules": {
-    "allowedTypes": ["<actor-type>", "..."],
-    "requiresPresence": "<boolean>"
+    "allowedTypes": ["validator", "observer"],
+    "requiresPresence": true
   }
 }
 ```
+
+Field types:
+- `version`: string (semantic version)
+- `epochId`: number (uint256)
+- `maxPayloadSize`: number (bytes)
+- `maxTTL`: number (seconds)
+- `propagationScope`: string ("global" | "local" | "restricted")
+- `encryptionRequired`: boolean
+- `allowedTypes`: array of strings
+- `requiresPresence`: boolean
 
 ### 2.3 Policy Hash (On-Chain)
 
@@ -105,7 +115,10 @@ An EpochDataPolicy is not required for all epochs:
 
 ### 4.1 Epoch Capability
 
-The presence of an EpochDataPolicy is determined by epoch capability:
+The presence of an EpochDataPolicy is determined by epoch capability.
+
+> **Note:** The `EpochCapability` enum (`PresenceOnly`, `PresenceWithSignals`,
+> `PresenceWithEphemeralData`) is formally defined in `ephemeral.md v0.5`.
 
 | Capability | Policy Required |
 |------------|-----------------|
@@ -116,8 +129,8 @@ The presence of an EpochDataPolicy is determined by epoch capability:
 ### 4.2 Lifecycle Alignment
 
 The policy's effective period aligns with the epoch lifecycle:
-- Policy becomes effective when epoch transitions to Active
-- Policy ceases to apply when epoch transitions from Active
+- Policy becomes effective when epoch transitions to the Active state
+- Policy ceases to apply when the epoch leaves the Active state
 - Policy remains queryable after epoch termination (for audit)
 
 ---
