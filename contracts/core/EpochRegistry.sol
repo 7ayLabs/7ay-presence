@@ -22,7 +22,12 @@ import {IEpochRegistry} from "../interfaces/IEpochRegistry.sol";
  * - Closed: block.timestamp >= endTime && !finalized
  * - Finalized: Permanently sealed (terminal)
  *
- * Specification reference: specs/epoch.md v0.2
+ * Epoch Capabilities (v0.5):
+ * - PresenceOnly: Basic presence tracking (default)
+ * - PresenceWithSignals: Presence + signal emission
+ * - PresenceWithEphemeralData: Full ephemeral data support
+ *
+ * Specification reference: specs/v0.2/epoch.md, specs/v0.5/ephemeral.md
  */
 contract EpochRegistry is IEpochRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -34,6 +39,12 @@ contract EpochRegistry is IEpochRegistry {
 
     /// @notice epochId => Epoch data
     mapping(uint256 => Epoch) private _epochs;
+
+    /// @notice epochId => EpochCapability (v0.5)
+    mapping(uint256 => EpochCapability) private _epochCapabilities;
+
+    /// @notice epochId => dataPolicyHash (v0.5)
+    mapping(uint256 => bytes32) private _epochDataPolicyHashes;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -113,12 +124,34 @@ contract EpochRegistry is IEpochRegistry {
         return (epoch.startTime, epoch.endTime);
     }
 
+    /**
+     * @inheritdoc IEpochRegistry
+     */
+    function epochCapability(uint256 epochId) external view override returns (EpochCapability capability) {
+        return _epochCapabilities[epochId];
+    }
+
+    /**
+     * @inheritdoc IEpochRegistry
+     */
+    function epochDataPolicyHash(uint256 epochId) external view override returns (bytes32 hash) {
+        return _epochDataPolicyHashes[epochId];
+    }
+
+    /**
+     * @inheritdoc IEpochRegistry
+     */
+    function supportsEphemeralData(uint256 epochId) external view override returns (bool supported) {
+        return _epochs[epochId].exists && _epochCapabilities[epochId] == EpochCapability.PresenceWithEphemeralData;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EPOCH LIFECYCLE
     //////////////////////////////////////////////////////////////*/
 
     /**
      * @inheritdoc IEpochRegistry
+     * @dev v0.4 compatible - defaults to PresenceOnly capability
      */
     function createEpoch(uint256 epochId, uint256 startTime, uint256 endTime) external override onlyAuthority {
         // Validate epochId
@@ -139,6 +172,66 @@ contract EpochRegistry is IEpochRegistry {
         // Create epoch
         _epochs[epochId] = Epoch({startTime: startTime, endTime: endTime, finalized: false, exists: true});
 
+        // Set default capability (v0.5)
+        _epochCapabilities[epochId] = EpochCapability.PresenceOnly;
+        // _epochDataPolicyHashes[epochId] defaults to bytes32(0)
+
+        // Emit both events for v0.5 compatibility
+        emit EpochCreatedV2(epochId, startTime, endTime, EpochCapability.PresenceOnly, bytes32(0));
+        emit EpochCreated(epochId, startTime, endTime);
+    }
+
+    /**
+     * @inheritdoc IEpochRegistry
+     */
+    function createEpochWithCapability(
+        uint256 epochId,
+        uint256 startTime,
+        uint256 endTime,
+        EpochCapability capability,
+        bytes32 dataPolicyHash
+    ) external override {
+        // Error priority: 1-6 (inline, no modifiers)
+
+        // 1. InvalidEpochId
+        if (epochId == 0) {
+            revert InvalidEpochId();
+        }
+
+        // 2. EpochAlreadyExists
+        if (_epochs[epochId].exists) {
+            revert EpochAlreadyExists(epochId);
+        }
+
+        // 3. InvalidEpochBounds
+        if (startTime >= endTime) {
+            revert InvalidEpochBounds(startTime, endTime);
+        }
+
+        // 4. InvalidCapability
+        if (uint256(capability) > uint256(EpochCapability.PresenceWithEphemeralData)) {
+            revert InvalidCapability();
+        }
+
+        // 5. InvalidDataPolicyHash (only for PresenceWithEphemeralData)
+        if (capability == EpochCapability.PresenceWithEphemeralData && dataPolicyHash == bytes32(0)) {
+            revert InvalidDataPolicyHash();
+        }
+
+        // 6. UnauthorizedEpochAuthority
+        if (msg.sender != epochAuthority) {
+            revert UnauthorizedEpochAuthority(msg.sender, epochAuthority);
+        }
+
+        // Create epoch (struct unchanged)
+        _epochs[epochId] = Epoch({startTime: startTime, endTime: endTime, finalized: false, exists: true});
+
+        // Store capability and policy in separate mappings
+        _epochCapabilities[epochId] = capability;
+        _epochDataPolicyHashes[epochId] = dataPolicyHash;
+
+        // Emit both events
+        emit EpochCreatedV2(epochId, startTime, endTime, capability, dataPolicyHash);
         emit EpochCreated(epochId, startTime, endTime);
     }
 
