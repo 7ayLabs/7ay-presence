@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/node.schema.json",
+  "title": "Node",
+  "description": "Logical protocol participant in the 7ay Presence Protocol",
+  "type": "object",
+  "properties": {
+    "identity": {
+      "type": "object",
+      "description": "Node identification",
+      "properties": {
+        "address": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Ethereum address (required)"
+        },
+        "publicKey": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{128}$",
+          "description": "Secp256k1 public key (optional, 64 bytes hex)"
+        }
+      },
+      "required": ["address"],
+      "additionalProperties": false
+    },
+    "epoch": {
+      "type": "object",
+      "description": "Epoch context",
+      "properties": {
+        "epochId": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Epoch identifier (uint256 as string)"
+        },
+        "joinedAt": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Block timestamp of presence declaration"
+        }
+      },
+      "required": ["epochId", "joinedAt"],
+      "additionalProperties": false
+    },
+    "role": {
+      "type": "string",
+      "enum": ["participant", "validator"],
+      "description": "Role classification"
+    },
+    "presence": {
+      "type": "object",
+      "description": "Presence binding",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["declared", "validated", "finalized"],
+          "description": "Current presence state"
+        },
+        "declaredAt": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Block timestamp of declaration"
+        },
+        "validatedAt": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Block timestamp of validation (optional)"
+        }
+      },
+      "required": ["state", "declaredAt"],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["discovery", "messaging", "stateSync"]
+      },
+      "uniqueItems": true,
+      "description": "Node capabilities"
+    }
+  },
+  "required": ["identity", "epoch", "role", "presence", "capabilities"],
+  "additionalProperties": false
+}

@@ -210,6 +210,6 @@ contract PresenceRegistryFuzzTests is Test {
 
     function test_protocolVersion() external view {
         string memory version = registry.protocolVersion();
-        assertEq(version, "0.4.0");
+        assertEq(version, "0.6.0");
     }
 }

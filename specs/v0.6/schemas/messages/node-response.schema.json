@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/node-response.schema.json",
+  "title": "NODE_RESPONSE Message",
+  "description": "Response to NODE_QUERY (0x03)",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 3,
+      "description": "Message type (NODE_RESPONSE = 0x03)"
+    },
+    "sender": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$"
+        },
+        "publicKey": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{128}$"
+        }
+      },
+      "required": ["address"],
+      "additionalProperties": false
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch context (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp (seconds)"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "queryNonce": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Query nonce for correlation"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "description": "MinimalNode representation",
+            "properties": {
+              "address": {
+                "type": "string",
+                "pattern": "^0x[a-fA-F0-9]{40}$"
+              },
+              "epochId": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "role": {
+                "type": "string",
+                "enum": ["participant", "validator"]
+              },
+              "presenceState": {
+                "type": "string",
+                "enum": ["declared", "validated", "finalized"]
+              }
+            },
+            "required": ["address", "epochId", "role", "presenceState"],
+            "additionalProperties": false
+          },
+          "maxItems": 100,
+          "description": "Matching nodes"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total matching nodes"
+        },
+        "hasMore": {
+          "type": "boolean",
+          "description": "Whether more results exist"
+        }
+      },
+      "required": ["queryNonce", "nodes", "total", "hasMore"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["version", "type", "sender", "epochId", "timestamp", "nonce", "signature", "payload"],
+  "additionalProperties": false
+}

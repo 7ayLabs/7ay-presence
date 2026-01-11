@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/state-sync-response.schema.json",
+  "title": "STATE_SYNC_RESPONSE Message",
+  "description": "Response to STATE_SYNC_REQUEST (0x11)",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 17,
+      "description": "Message type (STATE_SYNC_RESPONSE = 0x11)"
+    },
+    "sender": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$"
+        },
+        "publicKey": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{128}$"
+        }
+      },
+      "required": ["address"],
+      "additionalProperties": false
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch context (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp (seconds)"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "requestNonce": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Request nonce for correlation"
+        },
+        "currentVector": {
+          "type": "object",
+          "description": "Current state vector",
+          "properties": {
+            "epochId": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "presenceCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "validationCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "disputeCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "stateRoot": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$"
+            }
+          },
+          "required": ["epochId", "presenceCount", "validationCount", "disputeCount", "stateRoot"],
+          "additionalProperties": false
+        },
+        "state": {
+          "type": "object",
+          "description": "Full epoch state (for complete mode)",
+          "properties": {
+            "epochId": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "presences": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "actor": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{40}$"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": ["declared", "validated", "finalized", "slashed"]
+                  },
+                  "declaredAt": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "validatedAt": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": ["actor", "state", "declaredAt"],
+                "additionalProperties": false
+              }
+            },
+            "validations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "actor": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{40}$"
+                  },
+                  "validator": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{40}$"
+                  },
+                  "timestamp": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": ["actor", "validator", "timestamp"],
+                "additionalProperties": false
+              }
+            },
+            "disputes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "actor": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{40}$"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "upheld", "rejected"]
+                  },
+                  "initiator": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{40}$"
+                  },
+                  "votesFor": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "votesAgainst": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": ["actor", "status", "initiator", "votesFor", "votesAgainst"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["epochId", "presences", "validations", "disputes"],
+          "additionalProperties": false
+        },
+        "diff": {
+          "type": "object",
+          "description": "State diff (for partial mode)",
+          "properties": {
+            "fromVector": {
+              "$ref": "#/properties/payload/properties/currentVector"
+            },
+            "toVector": {
+              "$ref": "#/properties/payload/properties/currentVector"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "presence_declared",
+                      "presence_validated",
+                      "presence_finalized",
+                      "dispute_initiated",
+                      "dispute_voted",
+                      "dispute_resolved"
+                    ]
+                  },
+                  "actor": {
+                    "type": "string",
+                    "pattern": "^0x[a-fA-F0-9]{40}$"
+                  },
+                  "data": {
+                    "type": "string",
+                    "description": "Hex-encoded change data"
+                  }
+                },
+                "required": ["type", "actor", "data"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["fromVector", "toVector", "changes"],
+          "additionalProperties": false
+        },
+        "hasMore": {
+          "type": "boolean",
+          "description": "Whether more data exists"
+        },
+        "continuationToken": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Token for continuation request"
+        }
+      },
+      "required": ["requestNonce", "currentVector", "hasMore"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["version", "type", "sender", "epochId", "timestamp", "nonce", "signature", "payload"],
+  "additionalProperties": false
+}
