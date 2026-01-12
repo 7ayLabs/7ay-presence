@@ -49,9 +49,7 @@ contract DiscoveryIntegrationTests is Test {
         _epochRegistry = new EpochRegistry(AUTHORITY);
         _validatorRegistry = new ValidatorRegistry(AUTHORITY);
         _presenceRegistry = new PresenceRegistry(
-            IEpochRegistry(address(_epochRegistry)),
-            IValidatorRegistry(address(_validatorRegistry)),
-            0
+            IEpochRegistry(address(_epochRegistry)), IValidatorRegistry(address(_validatorRegistry)), 0
         );
 
         epochRegistry = IEpochRegistry(address(_epochRegistry));
