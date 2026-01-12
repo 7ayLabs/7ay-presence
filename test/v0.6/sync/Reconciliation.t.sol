@@ -40,9 +40,7 @@ contract StateSyncReconciliationTests is Test {
         // Deploy registries
         epochRegistry = IEpochRegistry(address(new EpochRegistry(epochAuthority)));
         validatorRegistry = IValidatorRegistry(address(new ValidatorRegistry(validatorAuthority)));
-        presenceRegistry = IPresenceRegistry(
-            address(new PresenceRegistry(epochRegistry, validatorRegistry, 0))
-        );
+        presenceRegistry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry, validatorRegistry, 0)));
 
         // Bootstrap validators
         vm.startPrank(validatorAuthority);
@@ -183,11 +181,7 @@ contract StateSyncReconciliationTests is Test {
         epochRegistry.createEpoch(presenceOnlyEpochId, block.timestamp, block.timestamp + 1 days);
 
         IEpochRegistry.EpochCapability cap = epochRegistry.epochCapability(presenceOnlyEpochId);
-        assertEq(
-            uint256(cap),
-            uint256(IEpochRegistry.EpochCapability.PresenceOnly),
-            "Default should be PresenceOnly"
-        );
+        assertEq(uint256(cap), uint256(IEpochRegistry.EpochCapability.PresenceOnly), "Default should be PresenceOnly");
     }
 
     /*//////////////////////////////////////////////////////////////

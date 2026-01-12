@@ -220,9 +220,7 @@ contract StateSyncInvariants is Test {
     function setUp() external {
         epochRegistry = IEpochRegistry(address(new EpochRegistry(epochAuthority)));
         validatorRegistry = IValidatorRegistry(address(new ValidatorRegistry(validatorAuthority)));
-        presenceRegistry = IPresenceRegistry(
-            address(new PresenceRegistry(epochRegistry, validatorRegistry, 0))
-        );
+        presenceRegistry = IPresenceRegistry(address(new PresenceRegistry(epochRegistry, validatorRegistry, 0)));
 
         handler = new StateSyncHandler(
             epochRegistry, presenceRegistry, validatorRegistry, epochAuthority, validatorAuthority
@@ -259,11 +257,7 @@ contract StateSyncInvariants is Test {
 
                 // If ghost has a non-None state, it should match on-chain
                 if (ghostState != IPresenceRegistry.PresenceState.None) {
-                    assertEq(
-                        uint256(onChainState),
-                        uint256(ghostState),
-                        "INV19: Ghost state must match on-chain"
-                    );
+                    assertEq(uint256(onChainState), uint256(ghostState), "INV19: Ghost state must match on-chain");
                 }
             }
         }
@@ -371,19 +365,13 @@ contract StateSyncInvariants is Test {
                 // If state is Validated, validationCount should be >= quorum
                 if (state == IPresenceRegistry.PresenceState.Validated) {
                     uint256 quorum = validatorRegistry.quorumSize();
-                    assertTrue(
-                        presence.validationCount >= quorum,
-                        "Validated state should have quorum votes"
-                    );
+                    assertTrue(presence.validationCount >= quorum, "Validated state should have quorum votes");
                 }
 
                 // If state is Declared, validationCount should be < quorum
                 if (state == IPresenceRegistry.PresenceState.Declared) {
                     uint256 quorum = validatorRegistry.quorumSize();
-                    assertTrue(
-                        presence.validationCount < quorum,
-                        "Declared state should have less than quorum votes"
-                    );
+                    assertTrue(presence.validationCount < quorum, "Declared state should have less than quorum votes");
                 }
             }
         }
