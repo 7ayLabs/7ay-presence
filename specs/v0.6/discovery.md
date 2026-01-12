@@ -208,9 +208,9 @@ function verifyDiscoveredNode(node: MinimalNode) → bool:
   if state ∉ {Declared, Validated, Finalized}:
     return false
 
-  // 3. Verify role claim
-  // Only reject if claiming Validator without being one
-  // Validators CAN announce as Participant (choosing not to exercise validator privileges)
+  // 3. Verify role claim (intentionally asymmetric)
+  // Non-validators CANNOT claim Validator (no role upgrade without validator status)
+  // Validators MAY announce as Participant (they may choose not to exercise validator privileges)
   isValidator = validatorRegistry.isValidatorActive(node.address)
   if node.role == Validator && !isValidator:
     return false
