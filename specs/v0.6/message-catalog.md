@@ -577,10 +577,10 @@ This specification explicitly does NOT define:
 
 ## 11. References
 
-- node-model.md v0.6.2 — Node structure
-- state-sync.md v0.6.1 — Sync protocol
-- invariants.md v0.6.1 — Protocol invariants
-- errors.md v0.6.1 — Error catalog
+- node-model.md v0.6 — Node structure (see specs/v0.6/)
+- state-sync.md v0.6 — Sync protocol (see specs/v0.6/)
+- invariants.md v0.6 — Protocol invariants INV19-26 (see specs/v0.6/)
+- errors.md v0.6 — Error catalog (see specs/v0.6/)
 - presence.md v0.4 — Presence states
 - validator.md v0.4 — Validator mechanics
 

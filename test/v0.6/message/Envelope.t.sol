@@ -177,7 +177,8 @@ contract MessageEnvelopeTest is Test {
         uint256 invalidEpochId = 999;
         assertFalse(uint256(epochRegistry.epochState(invalidEpochId)) != 0);
 
-        // Per INV23, this message would be invalid
+        // Per INV23, this message would be invalid - validate with helper
+        assertFalse(_isValidMessageEpoch(invalidEpochId), "INV23: Non-existent epoch should be invalid for messaging");
     }
 
     /// @notice Message for PresenceOnly epoch is invalid (no v0.6 features)
@@ -197,6 +198,9 @@ contract MessageEnvelopeTest is Test {
         assertEq(uint256(cap), 0); // PresenceOnly
 
         // Per INV23, v0.6 messages for this epoch would be invalid
+        assertFalse(
+            _isValidMessageEpoch(presenceOnlyEpochId), "INV23: PresenceOnly epoch should be invalid for v0.6 messaging"
+        );
     }
 
     // =========================================================================
@@ -345,7 +349,8 @@ contract MessageEnvelopeTest is Test {
         IPresenceRegistry.PresenceState state = presenceRegistry.presenceState(sender, epochId);
         assertEq(uint256(state), uint256(IPresenceRegistry.PresenceState.Declared));
 
-        // Valid sender for messaging
+        // Valid sender for messaging - validate with helper
+        assertTrue(_isValidMessageSender(sender, epochId), "Sender with presence should be valid for messaging");
     }
 
     /// @notice Sender without presence is invalid
@@ -354,7 +359,8 @@ contract MessageEnvelopeTest is Test {
         IPresenceRegistry.PresenceState state = presenceRegistry.presenceState(noPresence, epochId);
         assertEq(uint256(state), uint256(IPresenceRegistry.PresenceState.None));
 
-        // Invalid sender per validation rules
+        // Invalid sender per validation rules - validate with helper
+        assertFalse(_isValidMessageSender(noPresence, epochId), "Sender without presence should be invalid");
     }
 
     /// @notice Validator-only messages require validator role
@@ -363,7 +369,9 @@ contract MessageEnvelopeTest is Test {
         assertTrue(validatorRegistry.isValidatorActive(validator1));
         assertFalse(validatorRegistry.isValidatorActive(sender));
 
-        // sender cannot send STATE_SYNC_REQUEST (not a validator)
+        // Validate with helper: sender cannot send STATE_SYNC_REQUEST (not a validator)
+        assertTrue(_canSendStateSyncRequest(validator1), "Validator should be able to send STATE_SYNC_REQUEST");
+        assertFalse(_canSendStateSyncRequest(sender), "Non-validator should not be able to send STATE_SYNC_REQUEST");
     }
 
     // =========================================================================
@@ -452,5 +460,34 @@ contract MessageEnvelopeTest is Test {
 
         assertEq(keccak256(bytes(validVersion)), keccak256(bytes("0.6.0")));
         assertNotEq(keccak256(bytes(invalidVersion)), keccak256(bytes("0.6.0")));
+    }
+
+    // =========================================================================
+    // Semantic Validation Helpers (INV23, INV24, INV25)
+    // =========================================================================
+
+    /// @notice Check if epoch is valid for v0.6 messaging (INV23)
+    /// @dev Epoch must exist and have at least PresenceWithSignals capability
+    function _isValidMessageEpoch(uint256 _epochId) internal view returns (bool) {
+        // Epoch must exist (state != None)
+        if (epochRegistry.epochState(_epochId) == IEpochRegistry.EpochState.None) {
+            return false;
+        }
+        // Epoch must support signals (capability >= PresenceWithSignals)
+        IEpochRegistry.EpochCapability cap = epochRegistry.epochCapability(_epochId);
+        return uint256(cap) >= uint256(IEpochRegistry.EpochCapability.PresenceWithSignals);
+    }
+
+    /// @notice Check if sender is valid for messaging
+    /// @dev Sender must have valid presence (Declared, Validated, or Finalized)
+    function _isValidMessageSender(address _sender, uint256 _epochId) internal view returns (bool) {
+        IPresenceRegistry.PresenceState state = presenceRegistry.presenceState(_sender, _epochId);
+        return state == IPresenceRegistry.PresenceState.Declared || state == IPresenceRegistry.PresenceState.Validated
+            || state == IPresenceRegistry.PresenceState.Finalized;
+    }
+
+    /// @notice Check if address can send STATE_SYNC_REQUEST (validator-only)
+    function _canSendStateSyncRequest(address _sender) internal view returns (bool) {
+        return validatorRegistry.isValidatorActive(_sender);
     }
 }

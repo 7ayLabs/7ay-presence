@@ -453,8 +453,9 @@ This specification explicitly does NOT define:
 - presence.md v0.4 — Presence state machine
 - validator.md v0.4 — Validator mechanics
 - ephemeral.md v0.5 — Epoch capabilities
-- state-sync.md v0.6.1 — State synchronization
-- invariants.md v0.6.1 — Protocol invariants
+- state-sync.md v0.6 — State synchronization (see specs/v0.6/)
+- invariants.md v0.6 — Protocol invariants INV19-26 (see specs/v0.6/)
+- errors.md v0.6 — Error catalog (see specs/v0.6/)
 
 ---
 

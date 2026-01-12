@@ -87,7 +87,8 @@ contract NodeModelTest is Test {
         IPresenceRegistry.PresenceState state = presenceRegistry.presenceState(participant, epochId);
         assertEq(uint256(state), uint256(IPresenceRegistry.PresenceState.None));
 
-        // Node derivation would return null (not a valid node)
+        // Node derivation returns null (not a valid node) - validate with helper
+        assertFalse(_isValidNode(participant, epochId), "INV19: No presence means no valid node");
     }
 
     /// @notice Slashed actors are not valid nodes
@@ -122,7 +123,8 @@ contract NodeModelTest is Test {
         IPresenceRegistry.PresenceState state = presenceRegistry.presenceState(participant, epochId);
         assertEq(uint256(state), uint256(IPresenceRegistry.PresenceState.Slashed));
 
-        // Slashed actors are not valid nodes per INV19
+        // Slashed actors are not valid nodes per INV19 - validate with helper
+        assertFalse(_isValidNode(participant, epochId), "INV19: Slashed actors are not valid nodes");
     }
 
     // =========================================================================
@@ -178,15 +180,18 @@ contract NodeModelTest is Test {
         vm.prank(participant);
         presenceRegistry.declarePresence(participant, epochId2);
 
-        // Has presence in both epochs
+        // Has presence in both epochs (on-chain allows this)
         IPresenceRegistry.PresenceState state1 = presenceRegistry.presenceState(participant, epochId);
         IPresenceRegistry.PresenceState state2 = presenceRegistry.presenceState(participant, epochId2);
 
         assertEq(uint256(state1), uint256(IPresenceRegistry.PresenceState.Declared));
         assertEq(uint256(state2), uint256(IPresenceRegistry.PresenceState.Declared));
 
-        // Per v0.6 spec, for messaging purposes a node is bound to ONE epoch
-        // This is enforced at the semantic layer, not on-chain
+        // Per v0.6 spec (INV20), for messaging purposes a node is bound to ONE epoch at a time.
+        // On-chain state allows presence in multiple epochs, but the semantic layer
+        // enforces single-epoch binding for active messaging. Both are valid nodes:
+        assertTrue(_isValidNode(participant, epochId), "Valid node in epoch 1");
+        assertTrue(_isValidNode(participant, epochId2), "Valid node in epoch 2");
     }
 
     // =========================================================================
@@ -233,7 +238,8 @@ contract NodeModelTest is Test {
         IEpochRegistry.EpochCapability cap = epochRegistry.epochCapability(epochId);
         assertEq(uint256(cap), 1); // PresenceWithSignals = 1
 
-        // Discovery capability is available for this epoch
+        // Discovery capability is available for this epoch - validate with helper
+        assertTrue(_hasDiscoveryCapability(epochId), "Discovery capability should be available");
     }
 
     /// @notice StateSync capability requires Validator role
@@ -257,7 +263,10 @@ contract NodeModelTest is Test {
         IEpochRegistry.EpochCapability cap = epochRegistry.epochCapability(epochId2);
         assertEq(uint256(cap), 0); // PresenceOnly
 
-        // No v0.6 capabilities for this epoch (Discovery, Messaging, StateSync)
+        // No v0.6 capabilities for this epoch (Discovery, Messaging, StateSync) - validate with helper
+        assertFalse(_hasDiscoveryCapability(epochId2), "PresenceOnly should not have discovery capability");
+        assertFalse(_hasMessagingCapability(epochId2), "PresenceOnly should not have messaging capability");
+        assertFalse(_hasStateSyncCapability(epochId2), "PresenceOnly should not have state sync capability");
     }
 
     // =========================================================================
@@ -291,7 +300,11 @@ contract NodeModelTest is Test {
         assertEq(uint256(state), uint256(IPresenceRegistry.PresenceState.Declared));
         assertTrue(validatorRegistry.isValidatorActive(validator1));
 
-        // This creates a "Validator Node" with all capabilities
+        // This creates a "Validator Node" with all capabilities - validate
+        assertTrue(_isValidNode(validator1, epochId), "Validator node is valid");
+        assertTrue(_hasDiscoveryCapability(epochId), "Validator has discovery capability");
+        assertTrue(_hasMessagingCapability(epochId), "Validator has messaging capability");
+        assertTrue(_hasStateSyncCapability(epochId), "Validator has state sync capability (validator-only)");
     }
 
     /// @notice Node becomes inactive when epoch closes
@@ -300,16 +313,16 @@ contract NodeModelTest is Test {
         vm.prank(participant);
         presenceRegistry.declarePresence(participant, epochId);
 
-        // Active node
-        IPresenceRegistry.PresenceState state = presenceRegistry.presenceState(participant, epochId);
-        assertEq(uint256(state), uint256(IPresenceRegistry.PresenceState.Declared));
+        // Active node - verify with helper
+        assertTrue(_isActiveNode(participant, epochId), "Node should be active during Active epoch");
 
         // Close epoch
         vm.warp(endTime + 1);
         IEpochRegistry.EpochState epochState = epochRegistry.epochState(epochId);
         assertEq(uint256(epochState), uint256(IEpochRegistry.EpochState.Closed));
 
-        // Node becomes inactive (per semantic layer, not on-chain state change)
+        // Node becomes inactive per semantic layer (epoch not Active)
+        assertFalse(_isActiveNode(participant, epochId), "Node should be inactive after epoch closes");
     }
 
     // =========================================================================
@@ -332,5 +345,41 @@ contract NodeModelTest is Test {
         assertEq(nodeEpochId, epochId);
         assertFalse(isValidator); // Participant role
         assertEq(uint256(presenceState), uint256(IPresenceRegistry.PresenceState.Declared));
+    }
+
+    // =========================================================================
+    // Semantic Validation Helpers (INV19, INV20)
+    // =========================================================================
+
+    /// @notice Check if address is a valid node in epoch (INV19)
+    /// @dev Valid presence states: Declared, Validated, Finalized (not None, not Slashed)
+    function _isValidNode(address actor, uint256 _epochId) internal view returns (bool) {
+        IPresenceRegistry.PresenceState state = presenceRegistry.presenceState(actor, _epochId);
+        return state == IPresenceRegistry.PresenceState.Declared || state == IPresenceRegistry.PresenceState.Validated
+            || state == IPresenceRegistry.PresenceState.Finalized;
+    }
+
+    /// @notice Check if node is active (valid node + Active epoch)
+    function _isActiveNode(address actor, uint256 _epochId) internal view returns (bool) {
+        if (!_isValidNode(actor, _epochId)) return false;
+        return epochRegistry.epochState(_epochId) == IEpochRegistry.EpochState.Active;
+    }
+
+    /// @notice Check if epoch has discovery capability (requires PresenceWithSignals)
+    function _hasDiscoveryCapability(uint256 _epochId) internal view returns (bool) {
+        IEpochRegistry.EpochCapability cap = epochRegistry.epochCapability(_epochId);
+        return uint256(cap) >= uint256(IEpochRegistry.EpochCapability.PresenceWithSignals);
+    }
+
+    /// @notice Check if epoch has messaging capability (requires PresenceWithSignals)
+    function _hasMessagingCapability(uint256 _epochId) internal view returns (bool) {
+        IEpochRegistry.EpochCapability cap = epochRegistry.epochCapability(_epochId);
+        return uint256(cap) >= uint256(IEpochRegistry.EpochCapability.PresenceWithSignals);
+    }
+
+    /// @notice Check if epoch has state sync capability (requires PresenceWithSignals)
+    function _hasStateSyncCapability(uint256 _epochId) internal view returns (bool) {
+        IEpochRegistry.EpochCapability cap = epochRegistry.epochCapability(_epochId);
+        return uint256(cap) >= uint256(IEpochRegistry.EpochCapability.PresenceWithSignals);
     }
 }
