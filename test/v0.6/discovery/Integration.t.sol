@@ -75,7 +75,8 @@ contract DiscoveryIntegrationTests is Test {
             bytes32(0)
         );
 
-        // Register validators (4 validators so we can test removal)
+        // Register 4 validators: minimum 3 required + 1 for removal testing
+        // With 4 validators, quorum is ceil(4 * 67 / 100) = 3
         _validatorRegistry.addValidator(VALIDATOR_1);
         _validatorRegistry.addValidator(VALIDATOR_2);
         _validatorRegistry.addValidator(VALIDATOR_3);
@@ -454,7 +455,8 @@ contract DiscoveryIntegrationTests is Test {
     }
 
     /**
-     * @notice Validate presence with quorum
+     * @notice Validate presence with quorum (3 votes required with 4 validators)
+     * @dev Assumes 4 active validators with 67% threshold: ceil(4 * 67 / 100) = 3
      */
     function _validatePresence(address actor, uint256 epochId) internal {
         vm.prank(VALIDATOR_1);

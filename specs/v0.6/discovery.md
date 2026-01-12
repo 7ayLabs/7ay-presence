@@ -209,10 +209,10 @@ function verifyDiscoveredNode(node: MinimalNode) → bool:
     return false
 
   // 3. Verify role claim
+  // Only reject if claiming Validator without being one
+  // Validators CAN announce as Participant (choosing not to exercise validator privileges)
   isValidator = validatorRegistry.isValidatorActive(node.address)
   if node.role == Validator && !isValidator:
-    return false
-  if node.role == Participant && isValidator:
     return false
 
   return true
