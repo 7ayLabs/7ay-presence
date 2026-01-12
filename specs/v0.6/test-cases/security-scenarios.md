@@ -682,7 +682,7 @@
 - Sybil attacks (economic cost barrier)
 - Eclipse attacks (diversity + verification)
 - DoS attacks (rate limiting + quotas)
-- Validator collusion (limited to 1/3 tolerance)
+- Validator collusion (Byzantine fault tolerance allows up to 1/3 malicious validators)
 
 ### Accept as Tradeoffs:
 - Public presence enumeration
