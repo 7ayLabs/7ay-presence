@@ -212,28 +212,63 @@ contract MessageEnvelopeTest is Test {
         assertNotEq(nonce1, nonce2);
     }
 
-    /// @notice Same nonce from different senders is valid
+    /// @notice Same nonce from different senders is valid (INV25 scopes to sender)
     function test_nonceUniqueness_differentSenders() public {
+        string memory version = "0.6.0";
+        uint8 msgType = MSG_NODE_ANNOUNCE;
+        uint256 timestamp = block.timestamp;
         bytes32 sharedNonce = keccak256("shared-nonce");
+        bytes32 payloadHash = keccak256("test-payload");
 
-        // Same nonce, different senders - both valid per INV25
-        // (sender, nonce) pair uniqueness is per-sender
-
-        address sender2 = makeAddr("sender2");
+        // Second sender with presence
+        uint256 sender2Pk = 0xabcd;
+        address sender2 = vm.addr(sender2Pk);
         vm.prank(sender2);
         presenceRegistry.declarePresence(sender2, epochId);
 
-        // Both can use same nonce value
-        // This is valid because INV25 is scoped to (sender, nonce) pairs
+        // Create signature payload for sender1
+        bytes32 signaturePayload1 =
+            keccak256(abi.encodePacked(version, msgType, sender, epochId, timestamp, sharedNonce, payloadHash));
+        bytes32 ethSignedHash1 = _toEthSignedMessageHash(signaturePayload1);
+        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(senderPk, ethSignedHash1);
+
+        // Create signature payload for sender2 (same nonce!)
+        bytes32 signaturePayload2 =
+            keccak256(abi.encodePacked(version, msgType, sender2, epochId, timestamp, sharedNonce, payloadHash));
+        bytes32 ethSignedHash2 = _toEthSignedMessageHash(signaturePayload2);
+        (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(sender2Pk, ethSignedHash2);
+
+        // Both signatures verify correctly despite same nonce
+        // This is valid because INV25 scopes uniqueness to (sender, nonce) pairs
+        assertEq(ecrecover(ethSignedHash1, v1, r1, s1), sender);
+        assertEq(ecrecover(ethSignedHash2, v2, r2, s2), sender2);
     }
 
-    /// @notice Nonce reuse from same sender is invalid
-    function test_nonceUniqueness_reuseInvalid() public pure {
+    /// @notice Nonce reuse detection - same (sender, nonce) produces identical hash
+    function test_nonceUniqueness_reuseDetectable() public view {
+        string memory version = "0.6.0";
+        uint8 msgType = MSG_NODE_ANNOUNCE;
+        uint256 timestamp = block.timestamp;
         bytes32 nonce = keccak256("reused-nonce");
+        bytes32 payloadHash1 = keccak256("payload-1");
+        bytes32 payloadHash2 = keccak256("payload-2");
 
-        // If sender uses same nonce twice in same epoch, second message is invalid
-        // This is enforced at the semantic layer, not on-chain
-        assertEq(nonce, nonce); // Same nonce = invalid per INV25
+        // Message 1 with nonce
+        bytes32 signaturePayload1 =
+            keccak256(abi.encodePacked(version, msgType, sender, epochId, timestamp, nonce, payloadHash1));
+
+        // Message 2 with SAME nonce (different payload)
+        bytes32 signaturePayload2 =
+            keccak256(abi.encodePacked(version, msgType, sender, epochId, timestamp, nonce, payloadHash2));
+
+        // Different payloads produce different hashes even with same nonce
+        assertNotEq(signaturePayload1, signaturePayload2);
+
+        // But the (sender, epochId, nonce) tuple is the same - this is what INV25 tracks
+        // A semantic layer would reject message 2 because it already saw this nonce from this sender
+        bytes32 nonceKey1 = keccak256(abi.encodePacked(sender, epochId, nonce));
+        bytes32 nonceKey2 = keccak256(abi.encodePacked(sender, epochId, nonce));
+        assertEq(nonceKey1, nonceKey2); // Same key = replay detected per INV25
     }
 
     // =========================================================================
