@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/boomerang-ack.schema.json",
+  "title": "BoomerangAckPayload",
+  "description": "Payload for BOOMERANG_ACK (0x41) message - destination acknowledges receipt",
+  "type": "object",
+  "properties": {
+    "boomerangId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Cycle identifier from BOOMERANG_SEND"
+    },
+    "originalSendNonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Nonce from original BOOMERANG_SEND message"
+    },
+    "receivedAt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Receipt timestamp (Unix seconds)"
+    },
+    "innerPayloadHash": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Hash confirming received content matches"
+    },
+    "returnPath": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^0x[a-fA-F0-9]{40}$"
+      },
+      "minItems": 0,
+      "maxItems": 10,
+      "description": "Planned return route (must be divergent from forward path)"
+    }
+  },
+  "required": [
+    "boomerangId",
+    "originalSendNonce",
+    "receivedAt",
+    "innerPayloadHash",
+    "returnPath"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/boomerang-complete.schema.json",
+  "title": "BoomerangCompletePayload",
+  "description": "Payload for BOOMERANG_COMPLETE (0x43) message - origin confirms cycle completion",
+  "type": "object",
+  "properties": {
+    "boomerangId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Cycle identifier"
+    },
+    "completedAt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Completion timestamp (Unix seconds)"
+    },
+    "totalHops": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Total hops in full cycle (forward + return)"
+    },
+    "roundTripTime": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total cycle time in milliseconds"
+    },
+    "forwardPathHash": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Hash of forward path for verification"
+    },
+    "returnPathHash": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Hash of return path for verification"
+    },
+    "pathsDivergent": {
+      "type": "boolean",
+      "const": true,
+      "description": "Confirms INV30 - paths must differ"
+    }
+  },
+  "required": [
+    "boomerangId",
+    "completedAt",
+    "totalHops",
+    "roundTripTime",
+    "forwardPathHash",
+    "returnPathHash",
+    "pathsDivergent"
+  ],
+  "additionalProperties": false
+}

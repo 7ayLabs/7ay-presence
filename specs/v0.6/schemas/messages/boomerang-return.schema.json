@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/boomerang-return.schema.json",
+  "title": "BoomerangReturnPayload",
+  "description": "Payload for BOOMERANG_RETURN (0x42) message - return path traversal",
+  "type": "object",
+  "properties": {
+    "boomerangId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Cycle identifier"
+    },
+    "ackNonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Nonce from BOOMERANG_ACK message"
+    },
+    "hops": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/BoomerangHop"
+      },
+      "maxItems": 10,
+      "description": "Signed hops in return path"
+    },
+    "hopIndex": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Current hop position in return path"
+    }
+  },
+  "required": [
+    "boomerangId",
+    "ackNonce",
+    "hops",
+    "hopIndex"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "BoomerangHop": {
+      "type": "object",
+      "properties": {
+        "forwarder": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Node that forwarded at this hop"
+        },
+        "forwardedAt": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Forward timestamp (Unix seconds)"
+        },
+        "signature": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{130}$",
+          "description": "Forwarder's ECDSA signature (65 bytes)"
+        }
+      },
+      "required": ["forwarder", "forwardedAt", "signature"],
+      "additionalProperties": false
+    }
+  }
+}
