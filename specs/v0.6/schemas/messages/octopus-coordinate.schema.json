@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/octopus-coordinate.schema.json",
+  "title": "OctopusCoordinatePayload",
+  "description": "Payload for OCTOPUS_COORDINATE (0x63) message - sub-node coordination",
+  "type": "object",
+  "properties": {
+    "subNodeId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Sub-node ID sending coordination message"
+    },
+    "coordinationType": {
+      "type": "integer",
+      "enum": [0, 1, 2],
+      "description": "Coordination type: 0=HEARTBEAT, 1=LOAD_REPORT, 2=REBALANCE_REQUEST"
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "processedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Messages processed in window"
+        },
+        "queueDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Current pending message count"
+        },
+        "latencyMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Average processing latency in ms"
+        }
+      },
+      "required": ["processedCount", "queueDepth", "latencyMs"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "subNodeId",
+    "coordinationType",
+    "metrics"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/octopus-state-share.schema.json",
+  "title": "OctopusStateSharePayload",
+  "description": "Payload for OCTOPUS_STATE_SHARE (0x65) message - share sub-node state for merge",
+  "type": "object",
+  "properties": {
+    "subNodeId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Sub-node ID sharing state"
+    },
+    "parentAddress": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Parent node address"
+    },
+    "stateRoot": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Merkle root of state"
+    },
+    "itemCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of items in state"
+    },
+    "state": {
+      "type": "string",
+      "description": "Serialized state data (hex encoded)"
+    }
+  },
+  "required": [
+    "subNodeId",
+    "parentAddress",
+    "stateRoot",
+    "itemCount",
+    "state"
+  ],
+  "additionalProperties": false
+}

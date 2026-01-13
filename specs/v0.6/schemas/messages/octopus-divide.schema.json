@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/octopus-divide.schema.json",
+  "title": "OctopusDividePayload",
+  "description": "Payload for OCTOPUS_DIVIDE (0x61) message - announce node division",
+  "type": "object",
+  "properties": {
+    "parent": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Parent node address"
+    },
+    "subNodeCount": {
+      "type": "integer",
+      "enum": [2, 4],
+      "description": "Number of sub-nodes (2 or 4)"
+    },
+    "divisionLevel": {
+      "type": "integer",
+      "enum": [1, 2],
+      "description": "Division level (1=first, 2=second)"
+    },
+    "subNodeIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^0x[a-fA-F0-9]{64}$"
+      },
+      "minItems": 2,
+      "maxItems": 4,
+      "description": "Derived sub-node IDs"
+    },
+    "effectiveAt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "When division takes effect (Unix seconds)"
+    }
+  },
+  "required": [
+    "parent",
+    "subNodeCount",
+    "divisionLevel",
+    "subNodeIds",
+    "effectiveAt"
+  ],
+  "additionalProperties": false
+}

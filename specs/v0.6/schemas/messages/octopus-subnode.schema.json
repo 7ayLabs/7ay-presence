@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/octopus-subnode.schema.json",
+  "title": "OctopusSubNodePayload",
+  "description": "Payload for OCTOPUS_SUBNODE (0x62) message - register sub-node",
+  "type": "object",
+  "properties": {
+    "subNodeId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Derived sub-node ID"
+    },
+    "parentAddress": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Parent node address"
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3,
+      "description": "Sub-node index (0-3)"
+    },
+    "assignedRange": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "Hash range start (0-255)"
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255,
+          "description": "Hash range end (0-255)"
+        }
+      },
+      "required": ["start", "end"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "subNodeId",
+    "parentAddress",
+    "index",
+    "assignedRange"
+  ],
+  "additionalProperties": false
+}

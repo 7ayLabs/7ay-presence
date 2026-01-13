@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/octopus-merge.schema.json",
+  "title": "OctopusMergePayload",
+  "description": "Payload for OCTOPUS_MERGE (0x64) message - announce node merger",
+  "type": "object",
+  "properties": {
+    "parent": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Parent node address"
+    },
+    "subNodeIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^0x[a-fA-F0-9]{64}$"
+      },
+      "minItems": 2,
+      "maxItems": 4,
+      "description": "Sub-node IDs being merged"
+    },
+    "mergeReason": {
+      "type": "integer",
+      "enum": [0, 1, 2],
+      "description": "Merge reason: 0=LOW_THROUGHPUT, 1=EPOCH_CLOSING, 2=PARENT_REQUEST"
+    },
+    "effectiveAt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "When merge takes effect (Unix seconds)"
+    }
+  },
+  "required": [
+    "parent",
+    "subNodeIds",
+    "mergeReason",
+    "effectiveAt"
+  ],
+  "additionalProperties": false
+}

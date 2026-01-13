@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/octopus-threshold.schema.json",
+  "title": "OctopusThresholdPayload",
+  "description": "Payload for OCTOPUS_THRESHOLD (0x60) message - announce throughput threshold",
+  "type": "object",
+  "properties": {
+    "node": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Node address announcing threshold"
+    },
+    "currentThroughput": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Current throughput (msgs/second)"
+    },
+    "maxThroughput": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum throughput capacity"
+    },
+    "thresholdType": {
+      "type": "integer",
+      "enum": [0, 1],
+      "description": "Threshold type: 0=ACTIVATION (>45%), 1=DEACTIVATION (<20%)"
+    },
+    "measurementWindow": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Measurement window in seconds"
+    }
+  },
+  "required": [
+    "node",
+    "currentThroughput",
+    "maxThroughput",
+    "thresholdType",
+    "measurementWindow"
+  ],
+  "additionalProperties": false
+}
