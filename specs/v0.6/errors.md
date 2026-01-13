@@ -21,6 +21,7 @@ On-chain errors from v0.5 and earlier remain unchanged.
 | Messaging | Off-chain | New in v0.6 |
 | State Sync | Off-chain | New in v0.6 |
 | Media | Off-chain | New in v0.6.4 |
+| Boomerang | Off-chain | New in v0.6.5 |
 
 ---
 
@@ -53,7 +54,8 @@ enum ErrorCategory {
   DISCOVERY = "DISCOVERY",
   MESSAGE = "MESSAGE",
   SYNC = "SYNC",
-  MEDIA = "MEDIA"
+  MEDIA = "MEDIA",
+  BOOMERANG = "BOOMERANG"
 }
 ```
 
@@ -304,6 +306,62 @@ enum ErrorCategory {
 
 ---
 
+## Boomerang Errors (v0.6.5)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| BOOM_001 | PathNotDivergent | Return path same as forward path | INV30 |
+| BOOM_002 | BoomerangTimeout | Cycle timeout exceeded | INV31 |
+| BOOM_003 | InvalidHopSignature | Hop signature verification failed | INV33 |
+| BOOM_004 | BoomerangAborted | Cycle aborted mid-flight | INV32 |
+| BOOM_005 | InvalidReturnPath | Return path contains invalid nodes | INV30 |
+
+### BOOM_001: PathNotDivergent
+```typescript
+{
+  code: "BOOM_001",
+  category: "BOOMERANG",
+  message: "Return path must differ from forward path",
+  context: {
+    boomerangId: "0xabc...",
+    forwardPath: ["0x1111...", "0x2222..."],
+    returnPath: ["0x2222...", "0x1111..."]
+  }
+}
+```
+
+### BOOM_002: BoomerangTimeout
+```typescript
+{
+  code: "BOOM_002",
+  category: "BOOMERANG",
+  message: "Boomerang cycle timeout exceeded",
+  context: {
+    boomerangId: "0xabc...",
+    sentAt: 1700000000,
+    timeout: 60,
+    currentTime: 1700000061
+  }
+}
+```
+
+### BOOM_003: InvalidHopSignature
+```typescript
+{
+  code: "BOOM_003",
+  category: "BOOMERANG",
+  message: "Hop signature verification failed",
+  context: {
+    boomerangId: "0xabc...",
+    hopIndex: 2,
+    claimedForwarder: "0x1234...",
+    recoveredSigner: "0x5678..."
+  }
+}
+```
+
+---
+
 ## Error Priorities (Off-Chain)
 
 ### Message Validation Priority
@@ -347,6 +405,16 @@ enum ErrorCategory {
 | 5 | MEDIA_003 | Media not expired |
 | 6 | MEDIA_006 | Media exists |
 
+### Boomerang Validation Priority (v0.6.5)
+
+| Priority | Error | Check |
+|----------|-------|-------|
+| 1 | BOOM_001 | Return path divergent from forward |
+| 2 | BOOM_005 | All return path nodes have presence |
+| 3 | BOOM_003 | All hop signatures valid |
+| 4 | BOOM_002 | Within timeout window |
+| 5 | BOOM_004 | Cycle not aborted |
+
 ---
 
 ## Error Handling
@@ -378,6 +446,8 @@ Implementations SHOULD log errors with:
 | DISC_* | Retry with different peer |
 | MSG_* | Reject message, log |
 | SYNC_* | Force complete sync |
+| MEDIA_* | Reject media, notify sender |
+| BOOM_* | Retry with new boomerangId |
 
 ---
 
@@ -405,3 +475,5 @@ Implementations SHOULD log errors with:
 | Version | Changes |
 |---------|---------|
 | v0.6.1 | Added off-chain error catalog for semantic layer |
+| v0.6.4 | Added MEDIA_001-006 for ephemeral media |
+| v0.6.5 | Added BOOM_001-005 for boomerang routing |

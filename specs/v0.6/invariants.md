@@ -29,6 +29,7 @@ implementation.
 | Messaging | INV23-25 | Off-chain (v0.6) |
 | State Sync | INV26 | Off-chain (v0.6) |
 | Media | INV27-29 | Off-chain (v0.6.4) |
+| Boomerang | INV30-33 | Off-chain (v0.6.5) |
 
 ---
 
@@ -313,6 +314,49 @@ Media MUST NOT be accessible after epoch transition from Active.
 
 When epoch closes, all media becomes immediately unavailable, regardless of TTL.
 
+### 4.6 Boomerang Invariants (v0.6.5)
+
+**INV30: Path Divergence**
+Return path MUST differ from forward path by at least one intermediate node.
+
+```
+∀ boomerang:
+  forwardPath.intermediateNodes ≠ returnPath.intermediateNodes
+```
+
+This ensures boomerang routing tests multiple network paths.
+
+**INV31: Boomerang Timeout**
+Boomerang cycle MUST complete within timeout window.
+
+```
+∀ boomerang:
+  boomerang.state = Complete →
+    boomerang.completedAt - boomerang.sentAt ≤ boomerang.timeout
+```
+
+Maximum timeout is 300 seconds (5 minutes).
+
+**INV32: Boomerang Atomicity**
+Partial boomerang cycles MUST NOT affect message finality.
+
+```
+∀ boomerang:
+  boomerang.state ∈ {Pending, AwaitingReturn, Complete, Timeout, Failed}
+```
+
+No intermediate "partial" states persist. Terminal states are Complete, Timeout, and Failed.
+
+**INV33: Verification Chain**
+Each hop in boomerang return path MUST be signed by the forwarding node.
+
+```
+∀ boomerang, hop ∈ boomerang.returnPath.hops:
+  verify(hop.signature, hop.forwarder, hop.messageHash) = true
+```
+
+This creates a cryptographic chain of custody for the return path.
+
 ---
 
 ## 5. Invariant Enforcement
@@ -327,6 +371,8 @@ When epoch closes, all media becomes immediately unavailable, regardless of TTL.
 | INV21-22 | Off-chain | Discovery filtering |
 | INV23-25 | Off-chain | Message validation |
 | INV26 | Off-chain | Reconciliation algorithm |
+| INV27-29 | Off-chain | Media validation |
+| INV30-33 | Off-chain | Boomerang validation |
 
 ### 5.2 Verification Points
 
@@ -363,6 +409,11 @@ When epoch closes, all media becomes immediately unavailable, regardless of TTL.
 │  INV21-22: Discovery     ──┼── Requires INV19-20            │
 │  INV23-25: Messaging     ──┤                                │
 │  INV26: State Sync       ──┘                                │
+│      ↓                                                       │
+│  Off-Chain (v0.6.4+)                                        │
+│  ════════════════════                                       │
+│  INV27-29: Media         ── Requires INV14-18               │
+│  INV30-33: Boomerang     ── Requires INV23-25               │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -394,6 +445,8 @@ Off-chain invariant violations result in:
 | INV21-22 | Re-filter discovery results |
 | INV23-25 | Reject invalid messages |
 | INV26 | Force complete sync with on-chain verification |
+| INV27-29 | Reject invalid media |
+| INV30-33 | Retry with new boomerangId |
 
 ---
 
@@ -432,7 +485,7 @@ Off-chain invariant violations result in:
 ## 9. Compliance
 
 An implementation is considered compliant if and only if:
-- All invariants INV1-26 hold under all conditions
+- All invariants INV1-33 hold under all conditions
 - Violations are detected and handled appropriately
 - On-chain invariants are enforced via smart contracts
 - Off-chain invariants are enforced via client validation
@@ -456,3 +509,5 @@ An implementation is considered compliant if and only if:
 | Version | Changes |
 |---------|---------|
 | v0.6.1 | Added INV19-26 for semantic layer |
+| v0.6.4 | Added INV27-29 for media |
+| v0.6.5 | Added INV30-33 for boomerang |
