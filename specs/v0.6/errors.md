@@ -20,6 +20,7 @@ On-chain errors from v0.5 and earlier remain unchanged.
 | Discovery | Off-chain | New in v0.6 |
 | Messaging | Off-chain | New in v0.6 |
 | State Sync | Off-chain | New in v0.6 |
+| Media | Off-chain | New in v0.6.4 |
 
 ---
 
@@ -51,7 +52,8 @@ enum ErrorCategory {
   NODE = "NODE",
   DISCOVERY = "DISCOVERY",
   MESSAGE = "MESSAGE",
-  SYNC = "SYNC"
+  SYNC = "SYNC",
+  MEDIA = "MEDIA"
 }
 ```
 
@@ -247,6 +249,61 @@ enum ErrorCategory {
 
 ---
 
+## Media Errors (v0.6.4)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| MEDIA_001 | InvalidMediaType | Unsupported media format | INV28 |
+| MEDIA_002 | MediaTooLarge | Content exceeds size limit | INV28 |
+| MEDIA_003 | MediaExpired | TTL has expired | INV29 |
+| MEDIA_004 | MediaPolicyViolation | Violates epoch media policy | INV28 |
+| MEDIA_005 | MediaEpochMismatch | Epoch lacks PresenceWithEphemeralData | INV27 |
+| MEDIA_006 | MediaNotFound | Media not available | - |
+
+### MEDIA_001: InvalidMediaType
+```typescript
+{
+  code: "MEDIA_001",
+  category: "MEDIA",
+  message: "Media content type is not supported",
+  context: {
+    contentType: "image/gif",
+    allowedTypes: ["image/jpeg", "image/png", "image/webp"],
+    epochId: 123
+  }
+}
+```
+
+### MEDIA_002: MediaTooLarge
+```typescript
+{
+  code: "MEDIA_002",
+  category: "MEDIA",
+  message: "Media content exceeds maximum allowed size",
+  context: {
+    contentSize: 10485760,
+    maxSize: 5242880,
+    contentType: "image/jpeg"
+  }
+}
+```
+
+### MEDIA_005: MediaEpochMismatch
+```typescript
+{
+  code: "MEDIA_005",
+  category: "MEDIA",
+  message: "Epoch does not support ephemeral media",
+  context: {
+    epochId: 123,
+    epochCapability: "PresenceWithSignals",
+    requiredCapability: "PresenceWithEphemeralData"
+  }
+}
+```
+
+---
+
 ## Error Priorities (Off-Chain)
 
 ### Message Validation Priority
@@ -278,6 +335,17 @@ enum ErrorCategory {
 | 1 | SYNC_001 | Request format valid |
 | 2 | SYNC_002 | Epoch exists and syncable |
 | 3 | NODE_001 | Requester identity valid |
+
+### Media Validation Priority (v0.6.4)
+
+| Priority | Error | Check |
+|----------|-------|-------|
+| 1 | MEDIA_005 | Epoch has PresenceWithEphemeralData |
+| 2 | MEDIA_004 | Media complies with policy |
+| 3 | MEDIA_001 | Media type allowed |
+| 4 | MEDIA_002 | Media size within limits |
+| 5 | MEDIA_003 | Media not expired |
+| 6 | MEDIA_006 | Media exists |
 
 ---
 

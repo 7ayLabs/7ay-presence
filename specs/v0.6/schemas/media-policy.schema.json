@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/media-policy.schema.json",
+  "title": "MediaPolicy",
+  "description": "Media policy configuration for ephemeral media in epochs with PresenceWithEphemeralData capability",
+  "type": "object",
+  "required": [
+    "version",
+    "allowedImageTypes",
+    "allowedAudioTypes",
+    "maxImageSize",
+    "maxAudioSize",
+    "maxAudioDuration",
+    "maxTTL",
+    "propagationScope"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0.0",
+      "description": "Media policy schema version"
+    },
+    "allowedImageTypes": {
+      "type": "array",
+      "description": "Allowed image MIME types",
+      "items": {
+        "type": "string",
+        "enum": ["image/jpeg", "image/png", "image/webp"]
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "allowedAudioTypes": {
+      "type": "array",
+      "description": "Allowed audio MIME types",
+      "items": {
+        "type": "string",
+        "enum": ["audio/mp3", "audio/aac", "audio/opus"]
+      },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "maxImageSize": {
+      "type": "integer",
+      "description": "Maximum image size in bytes",
+      "minimum": 0,
+      "maximum": 10485760,
+      "default": 5242880
+    },
+    "maxAudioSize": {
+      "type": "integer",
+      "description": "Maximum audio size in bytes",
+      "minimum": 0,
+      "maximum": 20971520,
+      "default": 10485760
+    },
+    "maxAudioDuration": {
+      "type": "integer",
+      "description": "Maximum audio duration in seconds",
+      "minimum": 0,
+      "maximum": 300,
+      "default": 60
+    },
+    "maxTTL": {
+      "type": "integer",
+      "description": "Maximum time-to-live in seconds",
+      "minimum": 60,
+      "maximum": 86400,
+      "default": 3600
+    },
+    "propagationScope": {
+      "type": "string",
+      "description": "Media propagation scope",
+      "enum": ["None", "LocalOnly", "AdjacentSubEpochs"],
+      "default": "LocalOnly"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "version": "1.0.0",
+      "allowedImageTypes": ["image/jpeg", "image/png", "image/webp"],
+      "allowedAudioTypes": ["audio/mp3", "audio/aac", "audio/opus"],
+      "maxImageSize": 5242880,
+      "maxAudioSize": 10485760,
+      "maxAudioDuration": 60,
+      "maxTTL": 3600,
+      "propagationScope": "LocalOnly"
+    },
+    {
+      "version": "1.0.0",
+      "allowedImageTypes": ["image/jpeg"],
+      "allowedAudioTypes": [],
+      "maxImageSize": 1048576,
+      "maxAudioSize": 0,
+      "maxAudioDuration": 0,
+      "maxTTL": 1800,
+      "propagationScope": "None"
+    }
+  ]
+}

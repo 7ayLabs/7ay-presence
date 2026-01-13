@@ -28,6 +28,7 @@ implementation.
 | Discovery | INV21-22 | Off-chain (v0.6) |
 | Messaging | INV23-25 | Off-chain (v0.6) |
 | State Sync | INV26 | Off-chain (v0.6) |
+| Media | INV27-29 | Off-chain (v0.6.4) |
 
 ---
 
@@ -274,6 +275,43 @@ Given identical on-chain state, reconciliation MUST be deterministic.
 ```
 
 This ensures all nodes converge to identical state views.
+
+### 4.5 Media Invariants (v0.6.4)
+
+**INV27: Media Epoch Binding**
+All media MUST be bound to exactly one epoch with `PresenceWithEphemeralData` capability.
+
+```
+∀ media:
+  media.epochId ∈ existingEpochs ∧
+  epochRegistry.epochCapability(media.epochId) = PresenceWithEphemeralData
+```
+
+Media cannot exist in epochs with lower capabilities (PresenceOnly, PresenceWithSignals).
+
+**INV28: Media Policy Compliance**
+Media MUST comply with the epoch's data policy constraints.
+
+```
+∀ media, epochId:
+  media.contentType ∈ policy.allowedTypes ∧
+  media.contentSize ≤ policy.maxSize ∧
+  media.ttl ≤ policy.maxTTL ∧
+  (media.isAudio → media.duration ≤ policy.maxAudioDuration)
+```
+
+This ensures all media respects size, type, and duration limits.
+
+**INV29: Media Temporal Boundary**
+Media MUST NOT be accessible after epoch transition from Active.
+
+```
+∀ media, epochId:
+  epochRegistry.epochState(epochId) ≠ Active →
+    media.accessible = false
+```
+
+When epoch closes, all media becomes immediately unavailable, regardless of TTL.
 
 ---
 

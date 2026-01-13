@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/media-revoke.schema.json",
+  "title": "MediaRevokeMessage",
+  "description": "MEDIA_REVOKE (0x33) - Revoke/delete media before TTL expires",
+  "type": "object",
+  "required": [
+    "version",
+    "type",
+    "sender",
+    "epochId",
+    "timestamp",
+    "nonce",
+    "signature",
+    "payload"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 51,
+      "description": "Message type: MEDIA_REVOKE (0x33 = 51)"
+    },
+    "sender": {
+      "$ref": "../node.schema.json#/properties/identity",
+      "description": "Sender node identity"
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch identifier (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in seconds"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["mediaId", "reason"],
+      "properties": {
+        "mediaId": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Target media identifier"
+        },
+        "reason": {
+          "type": "integer",
+          "enum": [0, 1, 2],
+          "description": "Revocation reason: 0=OWNER_REQUESTED, 1=POLICY_VIOLATION, 2=EPOCH_CLOSING"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
