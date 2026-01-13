@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/autonomous-pattern.schema.json",
+  "title": "AutonomousPatternPayload",
+  "description": "Payload for AUTONOMOUS_PATTERN (0x51) message - reports pattern recognition result",
+  "type": "object",
+  "properties": {
+    "intentId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Intent being evaluated"
+    },
+    "actor": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Actor address"
+    },
+    "patternType": {
+      "type": "integer",
+      "enum": [0, 1, 2],
+      "description": "Pattern type: 0=FREQUENCY, 1=PERIODIC, 2=CONDITIONAL"
+    },
+    "frequency": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Actions per time window"
+    },
+    "windowStart": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Observation window start (Unix seconds)"
+    },
+    "windowEnd": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Observation window end (Unix seconds)"
+    },
+    "thresholdMet": {
+      "type": "boolean",
+      "description": "Whether threshold has been reached"
+    },
+    "evidenceHash": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Hash of evidence data"
+    }
+  },
+  "required": [
+    "intentId",
+    "actor",
+    "patternType",
+    "frequency",
+    "windowStart",
+    "windowEnd",
+    "thresholdMet",
+    "evidenceHash"
+  ],
+  "additionalProperties": false
+}

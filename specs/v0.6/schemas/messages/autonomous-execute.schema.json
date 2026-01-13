@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/autonomous-execute.schema.json",
+  "title": "AutonomousExecutePayload",
+  "description": "Payload for AUTONOMOUS_EXECUTE (0x52) message - notifies autonomous execution",
+  "type": "object",
+  "properties": {
+    "intentId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Intent being executed"
+    },
+    "executionId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Unique execution identifier"
+    },
+    "actionData": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]*$",
+      "description": "Encoded action parameters"
+    },
+    "actionHash": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Hash of action for verification"
+    },
+    "executedAt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Execution timestamp (Unix seconds)"
+    },
+    "conditionsMet": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^0x[a-fA-F0-9]{64}$"
+      },
+      "description": "Conditions that triggered execution"
+    }
+  },
+  "required": [
+    "intentId",
+    "executionId",
+    "actionData",
+    "actionHash",
+    "executedAt",
+    "conditionsMet"
+  ],
+  "additionalProperties": false
+}
