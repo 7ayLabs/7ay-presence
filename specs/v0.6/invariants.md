@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — v0.6 Invariants
-**Version:** v0.6.1
+**Version:** v0.6.6
 **Status:** Draft
 **Scope:** Protocol-level (canonical)
-**Depends on:** epoch.md v0.2, presence.md v0.4, validator.md v0.4, ephemeral.md v0.5
+**Depends on:** epoch.md v0.2, presence.md v0.4, validator.md v0.4, ephemeral.md v0.5, autonomous.md v0.6.6
 
 ---
 
@@ -30,6 +30,7 @@ implementation.
 | State Sync | INV26 | Off-chain (v0.6) |
 | Media | INV27-29 | Off-chain (v0.6.4) |
 | Boomerang | INV30-33 | Off-chain (v0.6.5) |
+| Autonomous | INV34-37 | Off-chain (v0.6.6) |
 
 ---
 
@@ -176,7 +177,7 @@ Ephemeral Data MUST NOT be persisted or finalized.
 
 ---
 
-## 4. New Invariants (INV19-26)
+## 4. New Invariants (INV19-37)
 
 ### 4.1 Node Model Invariants
 
@@ -357,6 +358,47 @@ Each hop in boomerang return path MUST be signed by the forwarding node.
 
 This creates a cryptographic chain of custody for the return path.
 
+### 4.7 Autonomous Invariants (v0.6.6)
+
+**INV34: Intent Presence**
+Intent declaration MUST require Validated or Finalized presence.
+
+```
+∀ intent:
+  presenceRegistry.presenceState(intent.actor, intent.epochId) ∈ {Validated, Finalized}
+```
+
+Declared-only or None presence cannot declare intents.
+
+**INV35: Pattern Threshold**
+Execution eligibility MUST require pattern threshold.
+
+```
+∀ intent:
+  intent.state = Eligible →
+    patternFrequency(intent) ≥ patternThreshold(intent.patternType)
+```
+
+**INV36: Validator Finalization**
+Autonomous execution MUST be finalized by validator quorum.
+
+```
+∀ execution:
+  execution.state = Finalized →
+    count(approveVotes[execution]) ≥ quorumSize()
+```
+
+**INV37: Epoch Scope**
+Autonomous authorizations MUST NOT persist across epochs.
+
+```
+∀ intent, epoch1, epoch2 where epoch1 ≠ epoch2:
+  intent.epochId = epoch1 →
+    ¬∃ execution for intent in epoch2
+```
+
+All pending intents are revoked when epoch closes.
+
 ---
 
 ## 5. Invariant Enforcement
@@ -372,7 +414,8 @@ This creates a cryptographic chain of custody for the return path.
 | INV23-25 | Off-chain | Message validation |
 | INV26 | Off-chain | Reconciliation algorithm |
 | INV27-29 | Off-chain | Media validation |
-| INV30-33 | Off-chain | Boomerang validation |
+| INV30-33 | Off-chain | Boomerang routing validation |
+| INV34-37 | Off-chain | Autonomous execution validation |
 
 ### 5.2 Verification Points
 
@@ -414,6 +457,7 @@ This creates a cryptographic chain of custody for the return path.
 │  ════════════════════                                       │
 │  INV27-29: Media         ── Requires INV14-18               │
 │  INV30-33: Boomerang     ── Requires INV23-25               │
+│  INV34-37: Autonomous    ── Requires INV1-13, INV23-25      │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -447,6 +491,7 @@ Off-chain invariant violations result in:
 | INV26 | Force complete sync with on-chain verification |
 | INV27-29 | Reject invalid media |
 | INV30-33 | Retry with new boomerangId |
+| INV34-37 | Revoke intent, re-declare if needed |
 
 ---
 
@@ -485,7 +530,7 @@ Off-chain invariant violations result in:
 ## 9. Compliance
 
 An implementation is considered compliant if and only if:
-- All invariants INV1-33 hold under all conditions
+- All invariants INV1-37 hold under all conditions
 - Violations are detected and handled appropriately
 - On-chain invariants are enforced via smart contracts
 - Off-chain invariants are enforced via client validation
@@ -511,3 +556,4 @@ An implementation is considered compliant if and only if:
 | v0.6.1 | Added INV19-26 for semantic layer |
 | v0.6.4 | Added INV27-29 for media |
 | v0.6.5 | Added INV30-33 for boomerang |
+| v0.6.6 | Added INV34-37 for autonomous |

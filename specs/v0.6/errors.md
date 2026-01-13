@@ -22,6 +22,7 @@ On-chain errors from v0.5 and earlier remain unchanged.
 | State Sync | Off-chain | New in v0.6 |
 | Media | Off-chain | New in v0.6.4 |
 | Boomerang | Off-chain | New in v0.6.5 |
+| Autonomous | Off-chain | New in v0.6.6 |
 
 ---
 
@@ -55,7 +56,8 @@ enum ErrorCategory {
   MESSAGE = "MESSAGE",
   SYNC = "SYNC",
   MEDIA = "MEDIA",
-  BOOMERANG = "BOOMERANG"
+  BOOMERANG = "BOOMERANG",
+  AUTONOMOUS = "AUTONOMOUS"
 }
 ```
 
@@ -362,6 +364,62 @@ enum ErrorCategory {
 
 ---
 
+## Autonomous Errors (v0.6.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| AUTO_001 | InsufficientPresence | Actor not Validated/Finalized | INV34 |
+| AUTO_002 | PatternThresholdNotMet | Pattern frequency below threshold | INV35 |
+| AUTO_003 | QuorumNotReached | Insufficient validator approvals | INV36 |
+| AUTO_004 | IntentExpired | Intent has passed expiration time | INV37 |
+| AUTO_005 | MaxExecutionsReached | Execution count at maximum | - |
+| AUTO_006 | IntentNotFound | Referenced intent does not exist | - |
+
+### AUTO_001: InsufficientPresence
+```typescript
+{
+  code: "AUTO_001",
+  category: "AUTONOMOUS",
+  message: "Actor must have Validated or Finalized presence to declare intent",
+  context: {
+    actor: "0x1234...",
+    epochId: 123,
+    presenceState: "Declared"
+  }
+}
+```
+
+### AUTO_002: PatternThresholdNotMet
+```typescript
+{
+  code: "AUTO_002",
+  category: "AUTONOMOUS",
+  message: "Pattern frequency does not meet threshold for execution",
+  context: {
+    intentId: "0xabc...",
+    patternType: "FREQUENCY",
+    observed: 3,
+    threshold: 5
+  }
+}
+```
+
+### AUTO_003: QuorumNotReached
+```typescript
+{
+  code: "AUTO_003",
+  category: "AUTONOMOUS",
+  message: "Insufficient validator approvals for finalization",
+  context: {
+    executionId: "0xdef...",
+    approvals: 1,
+    required: 2
+  }
+}
+```
+
+---
+
 ## Error Priorities (Off-Chain)
 
 ### Message Validation Priority
@@ -415,6 +473,17 @@ enum ErrorCategory {
 | 4 | BOOM_002 | Within timeout window |
 | 5 | BOOM_004 | Cycle not aborted |
 
+### Autonomous Validation Priority (v0.6.6)
+
+| Priority | Error | Check |
+|----------|-------|-------|
+| 1 | AUTO_001 | Actor has Validated/Finalized presence |
+| 2 | AUTO_004 | Intent not expired |
+| 3 | AUTO_002 | Pattern threshold met |
+| 4 | AUTO_003 | Validator quorum reached |
+| 5 | AUTO_005 | Execution count within limits |
+| 6 | AUTO_006 | Intent exists |
+
 ---
 
 ## Error Handling
@@ -448,6 +517,7 @@ Implementations SHOULD log errors with:
 | SYNC_* | Force complete sync |
 | MEDIA_* | Reject media, notify sender |
 | BOOM_* | Retry with new boomerangId |
+| AUTO_* | Revoke intent, re-declare if needed |
 
 ---
 
@@ -477,3 +547,4 @@ Implementations SHOULD log errors with:
 | v0.6.1 | Added off-chain error catalog for semantic layer |
 | v0.6.4 | Added MEDIA_001-006 for ephemeral media |
 | v0.6.5 | Added BOOM_001-005 for boomerang routing |
+| v0.6.6 | Added AUTO_001-006 for autonomous transactions |

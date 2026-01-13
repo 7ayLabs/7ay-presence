@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.6.2
+**Version:** v0.6.6
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.1
+**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.6
 
 ---
 
@@ -94,7 +94,14 @@ enum MessageType {
   BOOMERANG_SEND = 0x40,
   BOOMERANG_ACK = 0x41,
   BOOMERANG_RETURN = 0x42,
-  BOOMERANG_COMPLETE = 0x43
+  BOOMERANG_COMPLETE = 0x43,
+
+  // Autonomous (0x50-0x5F) — v0.6.6
+  AUTONOMOUS_INTENT = 0x50,
+  AUTONOMOUS_PATTERN = 0x51,
+  AUTONOMOUS_EXECUTE = 0x52,
+  AUTONOMOUS_FINALIZE = 0x53,
+  AUTONOMOUS_REVOKE = 0x54
 }
 ```
 
@@ -603,3 +610,6 @@ This specification explicitly does NOT define:
 | Version | Changes |
 |---------|---------|
 | v0.6.2 | Initial message catalog specification |
+| v0.6.4 | Added Media messages (0x30-0x33) |
+| v0.6.5 | Added Boomerang messages (0x40-0x43) |
+| v0.6.6 | Added Autonomous messages (0x50-0x54) |
