@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/presence-attestation.schema.json",
+  "title": "PRESENCE_ATTESTATION Message",
+  "description": "Validator attests to presence observation (0x20)",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 32,
+      "description": "Message type (PRESENCE_ATTESTATION = 0x20)"
+    },
+    "sender": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$"
+        },
+        "publicKey": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{128}$"
+        }
+      },
+      "required": ["address"],
+      "additionalProperties": false
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch context (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp (seconds)"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$",
+          "description": "Attested presence actor"
+        },
+        "observedAt": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Observation timestamp"
+        },
+        "evidenceHash": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Optional evidence reference"
+        }
+      },
+      "required": ["actor", "observedAt"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["version", "type", "sender", "epochId", "timestamp", "nonce", "signature", "payload"],
+  "additionalProperties": false
+}
