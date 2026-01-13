@@ -12,7 +12,7 @@ Commercial use requires a separate license from 7ayLabs.
 
 ## Current Version
 
-The protocol is currently at **v0.5**, which adds the Ephemeral Data Governance Layer with epoch capabilities and policy commitments.
+The protocol is currently at **v0.6**, which adds the Semantic Protocol Extension for Node Discovery and Logical Messaging.
 
 | Version | Status | Scope |
 |---------|--------|-------|
@@ -21,6 +21,7 @@ The protocol is currently at **v0.5**, which adds the Ephemeral Data Governance 
 | v0.3 | Complete | Declaration layer (declarePresence, Declared state) |
 | v0.4 | Complete | Validators, quorum validation, disputes, slashing |
 | v0.5 | Complete | Ephemeral Data Governance (EpochCapability, EpochDataPolicy) |
+| v0.6 | Complete | Semantic Protocol Extension (Node Discovery, Messaging, State Sync) |
 
 ## Usage
 
@@ -28,7 +29,15 @@ The protocol is currently at **v0.5**, which adds the Ephemeral Data Governance 
 
 The canonical protocol documents are organized by version:
 
-**v0.5 (Current)**
+**v0.6 (Current)**
+- [specs/v0.6/node-model.md](specs/v0.6/node-model.md) — Logical node structure and identity
+- [specs/v0.6/message-catalog.md](specs/v0.6/message-catalog.md) — Protocol message types and schemas
+- [specs/v0.6/discovery.md](specs/v0.6/discovery.md) — Node discovery semantics
+- [specs/v0.6/state-sync.md](specs/v0.6/state-sync.md) — State synchronization and reconciliation
+- [specs/v0.6/invariants.md](specs/v0.6/invariants.md) — v0.6 protocol invariants (INV19-26)
+- [specs/v0.6/errors.md](specs/v0.6/errors.md) — v0.6 error catalog
+
+**v0.5**
 - [specs/v0.5/ephemeral.md](specs/v0.5/ephemeral.md) — Ephemeral Data Governance Layer
 - [specs/v0.5/policy-definition.md](specs/v0.5/policy-definition.md) — EpochDataPolicy formal definition
 - [specs/v0.5/policy-commitment.md](specs/v0.5/policy-commitment.md) — Policy commitment semantics
@@ -93,6 +102,14 @@ forge test --match-contract ValidatorRegistryUnitTests
 
 **Ephemeral Data** — Temporary, non-addressable data that exists only during an epoch's Active state. Cannot be persisted, referenced externally, or influence presence state.
 
+**Node** — A logical abstraction over on-chain actors. Nodes are identified by their Ethereum address and have a role (Participant or Validator) and capabilities (Discovery, Messaging, StateSync).
+
+**Message Envelope** — A signed protocol message containing version, type, sender identity, epoch context, timestamp, nonce (for replay protection), signature, and payload.
+
+**Discovery** — The process by which nodes find and connect with peers within an epoch. Discovery is epoch-scoped and presence-gated.
+
+**State Synchronization** — The process by which nodes maintain consistent views of protocol state. Uses deterministic reconciliation to ensure identical state roots.
+
 ## Invariants
 
 ### Presence Invariants
@@ -121,6 +138,16 @@ forge test --match-contract ValidatorRegistryUnitTests
 17. Ephemeral Data MUST NOT influence presence state (orthogonality)
 18. Ephemeral Data MUST NOT be persisted or finalized
 
+### Semantic Protocol Invariants (v0.6)
+19. Node identity MUST be derivable from on-chain state
+20. Node MUST be bound to exactly one epoch at any time
+21. Discovery MUST NOT return nodes from different epochs
+22. Only nodes with valid presence (Declared/Validated/Finalized) are discoverable
+23. All messages MUST reference a valid epoch
+24. Message signature MUST verify against sender address
+25. Each (sender, nonce) pair MUST be unique per epoch
+26. Given identical on-chain state, reconciliation MUST be deterministic
+
 ## Versions
 
 Protocol versions are available in the `specs/` directory:
@@ -129,7 +156,8 @@ Protocol versions are available in the `specs/` directory:
 - `specs/v0.2/` — Epoch lifecycle specification
 - `specs/v0.3/` — Declaration layer specification
 - `specs/v0.4/` — Validators, disputes, slashing
-- `specs/v0.5/` — Ephemeral Data Governance (current)
+- `specs/v0.5/` — Ephemeral Data Governance
+- `specs/v0.6/` — Semantic Protocol Extension (current)
 
 ## License
 
