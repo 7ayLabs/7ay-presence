@@ -514,9 +514,7 @@ contract BoomerangInvariantsTest is Test {
 
     /// @notice Boomerangs respect epoch lifecycle
     function test_epochBinding_epochClosure() public {
-        bytes32 boomerangId = keccak256(abi.encodePacked(node1, epochId, uint256(6)));
-
-        // Initiate boomerang
+        // Initiate boomerang (nonce 6 creates deterministic ID)
         handler.initiateBoomerang(0, 1, 2, 60, 6);
 
         // Warp to after epoch ends
