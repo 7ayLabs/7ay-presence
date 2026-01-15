@@ -82,7 +82,13 @@ enum MessageType {
   // Attestation (0x20-0x2F)
   PRESENCE_ATTESTATION = 0x20,
   VALIDATION_VOTE = 0x21,
-  DISPUTE_NOTICE = 0x22
+  DISPUTE_NOTICE = 0x22,
+
+  // Media (0x30-0x3F) — v0.6.4
+  MEDIA_ANNOUNCE = 0x30,
+  MEDIA_REQUEST = 0x31,
+  MEDIA_RESPONSE = 0x32,
+  MEDIA_REVOKE = 0x33
 }
 ```
 

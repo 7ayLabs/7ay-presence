@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/media-announce.schema.json",
+  "title": "MediaAnnounceMessage",
+  "description": "MEDIA_ANNOUNCE (0x30) - Announce media availability to peers",
+  "type": "object",
+  "required": [
+    "version",
+    "type",
+    "sender",
+    "epochId",
+    "timestamp",
+    "nonce",
+    "signature",
+    "payload"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 48,
+      "description": "Message type: MEDIA_ANNOUNCE (0x30 = 48)"
+    },
+    "sender": {
+      "$ref": "../node.schema.json#/properties/identity",
+      "description": "Sender node identity"
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch identifier (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in seconds"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["metadata", "available"],
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "required": [
+            "mediaId",
+            "contentHash",
+            "contentType",
+            "contentSize",
+            "createdAt",
+            "ttl",
+            "expiresAt",
+            "sender",
+            "epochId"
+          ],
+          "properties": {
+            "mediaId": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$",
+              "description": "Unique media identifier"
+            },
+            "contentHash": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$",
+              "description": "keccak256 hash of media content"
+            },
+            "contentType": {
+              "type": "string",
+              "enum": [
+                "image/jpeg",
+                "image/png",
+                "image/webp",
+                "audio/mp3",
+                "audio/aac",
+                "audio/opus"
+              ],
+              "description": "MIME type of media content"
+            },
+            "contentSize": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20971520,
+              "description": "Content size in bytes"
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8192,
+              "description": "Image width in pixels (images only)"
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8192,
+              "description": "Image height in pixels (images only)"
+            },
+            "duration": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300,
+              "description": "Audio duration in seconds (audio only)"
+            },
+            "createdAt": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Creation timestamp (Unix seconds)"
+            },
+            "ttl": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 86400,
+              "description": "Time-to-live in seconds"
+            },
+            "expiresAt": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Expiration timestamp (createdAt + ttl)"
+            },
+            "sender": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{40}$",
+              "description": "Media owner address"
+            },
+            "epochId": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Epoch identifier"
+            }
+          },
+          "additionalProperties": false
+        },
+        "thumbnail": {
+          "type": "string",
+          "maxLength": 14000,
+          "description": "Base64 encoded thumbnail (max 10KB, images only)"
+        },
+        "available": {
+          "type": "boolean",
+          "description": "Media availability status"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
