@@ -27,7 +27,7 @@ contract PresenceRegistry is IPresenceRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Protocol version following semantic versioning
-    string public constant PROTOCOL_VERSION = "0.4.0";
+    string public constant PROTOCOL_VERSION = "0.6.0";
 
     /// @notice Default dispute window (1 day)
     uint256 public constant DEFAULT_DISPUTE_WINDOW = 1 days;

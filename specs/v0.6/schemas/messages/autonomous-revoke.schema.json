@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/autonomous-revoke.schema.json",
+  "title": "AutonomousRevokePayload",
+  "description": "Payload for AUTONOMOUS_REVOKE (0x54) message - revokes autonomous authorization",
+  "type": "object",
+  "properties": {
+    "intentId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Intent being revoked"
+    },
+    "reason": {
+      "type": "integer",
+      "enum": [0, 1, 2, 3],
+      "description": "Revoke reason: 0=ACTOR_REQUEST, 1=VALIDATOR_FORCE, 2=EPOCH_END, 3=EXPIRED"
+    },
+    "effectiveAt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "When revocation takes effect (Unix seconds)"
+    }
+  },
+  "required": [
+    "intentId",
+    "reason",
+    "effectiveAt"
+  ],
+  "additionalProperties": false
+}

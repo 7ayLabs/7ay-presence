@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/autonomous-finalize.schema.json",
+  "title": "AutonomousFinalizePayload",
+  "description": "Payload for AUTONOMOUS_FINALIZE (0x53) message - validator finalization vote",
+  "type": "object",
+  "properties": {
+    "intentId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Intent being finalized"
+    },
+    "executionId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Execution being voted on"
+    },
+    "vote": {
+      "type": "integer",
+      "enum": [0, 1, 2],
+      "description": "Vote: 0=APPROVE, 1=REJECT, 2=ABSTAIN"
+    },
+    "rationale": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Optional field; when provided, must be a 32-byte hash (64 hex characters) prefixed with 0x"
+    },
+    "validatorSignature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "Validator signature on execution (65 bytes)"
+    }
+  },
+  "required": [
+    "intentId",
+    "executionId",
+    "vote",
+    "validatorSignature"
+  ],
+  "additionalProperties": false
+}

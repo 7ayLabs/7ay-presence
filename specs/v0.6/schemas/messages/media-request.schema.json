@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/media-request.schema.json",
+  "title": "MediaRequestMessage",
+  "description": "MEDIA_REQUEST (0x31) - Request media content from a peer",
+  "type": "object",
+  "required": [
+    "version",
+    "type",
+    "sender",
+    "epochId",
+    "timestamp",
+    "nonce",
+    "signature",
+    "payload"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 49,
+      "description": "Message type: MEDIA_REQUEST (0x31 = 49)"
+    },
+    "sender": {
+      "$ref": "../node.schema.json#/properties/identity",
+      "description": "Sender node identity"
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch identifier (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in seconds"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["mediaId"],
+      "properties": {
+        "mediaId": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Target media identifier"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Byte offset for chunked transfer"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576,
+          "description": "Maximum bytes to return (default: full content)"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

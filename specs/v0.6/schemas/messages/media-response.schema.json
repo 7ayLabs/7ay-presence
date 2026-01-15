@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/media-response.schema.json",
+  "title": "MediaResponseMessage",
+  "description": "MEDIA_RESPONSE (0x32) - Deliver media content in response to request",
+  "type": "object",
+  "required": [
+    "version",
+    "type",
+    "sender",
+    "epochId",
+    "timestamp",
+    "nonce",
+    "signature",
+    "payload"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 50,
+      "description": "Message type: MEDIA_RESPONSE (0x32 = 50)"
+    },
+    "sender": {
+      "$ref": "../node.schema.json#/properties/identity",
+      "description": "Sender node identity (media owner)"
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch identifier (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp in seconds"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "requestNonce",
+        "mediaId",
+        "content",
+        "offset",
+        "totalSize",
+        "contentHash",
+        "isComplete"
+      ],
+      "properties": {
+        "requestNonce": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Nonce from the MEDIA_REQUEST message"
+        },
+        "mediaId": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "Media identifier"
+        },
+        "content": {
+          "type": "string",
+          "description": "Base64 encoded media content (or chunk)"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Byte offset of this chunk"
+        },
+        "totalSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20971520,
+          "description": "Total content size in bytes"
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{64}$",
+          "description": "keccak256 hash of full content (not chunk)"
+        },
+        "isComplete": {
+          "type": "boolean",
+          "description": "True if this completes the transfer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

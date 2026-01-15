@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/node-announce.schema.json",
+  "title": "NODE_ANNOUNCE Message",
+  "description": "Broadcast node availability to the network (0x01)",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 1,
+      "description": "Message type (NODE_ANNOUNCE = 0x01)"
+    },
+    "sender": {
+      "$ref": "../node.schema.json#/properties/identity",
+      "description": "Sender identification"
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch context (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp (seconds)"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "node": {
+          "$ref": "../node.schema.json",
+          "description": "Full node information"
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": "Discovery endpoints (optional)"
+        },
+        "ttl": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "Time-to-live in seconds"
+        }
+      },
+      "required": ["node", "ttl"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["version", "type", "sender", "epochId", "timestamp", "nonce", "signature", "payload"],
+  "additionalProperties": false
+}

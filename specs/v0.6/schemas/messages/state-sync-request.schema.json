@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/state-sync-request.schema.json",
+  "title": "STATE_SYNC_REQUEST Message",
+  "description": "Request state synchronization with a peer (0x10)",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "0.6.0",
+      "description": "Protocol version"
+    },
+    "type": {
+      "type": "integer",
+      "const": 16,
+      "description": "Message type (STATE_SYNC_REQUEST = 0x10)"
+    },
+    "sender": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{40}$"
+        },
+        "publicKey": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]{128}$"
+        }
+      },
+      "required": ["address"],
+      "additionalProperties": false
+    },
+    "epochId": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Epoch context (uint256 as string)"
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp (seconds)"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Random 32-byte nonce for replay protection"
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{130}$",
+      "description": "ECDSA signature (65 bytes)"
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["complete", "partial"],
+          "description": "Sync mode"
+        },
+        "fromVector": {
+          "type": "object",
+          "description": "Starting point for partial sync",
+          "properties": {
+            "epochId": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "presenceCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "validationCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "disputeCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "stateRoot": {
+              "type": "string",
+              "pattern": "^0x[a-fA-F0-9]{64}$"
+            }
+          },
+          "required": ["epochId", "presenceCount", "validationCount", "disputeCount", "stateRoot"],
+          "additionalProperties": false
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["presences", "validations", "disputes"]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Requested state types"
+        }
+      },
+      "required": ["mode", "include"],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "mode": { "const": "partial" }
+        }
+      },
+      "then": {
+        "required": ["mode", "include", "fromVector"]
+      }
+    }
+  },
+  "required": ["version", "type", "sender", "epochId", "timestamp", "nonce", "signature", "payload"],
+  "additionalProperties": false
+}
