@@ -349,10 +349,17 @@ contract AutonomousPatternTest is Test {
         if (timestamps.length < 2) return false;
 
         uint256 tolerance = expectedInterval / 10; // 10% tolerance
+        // Enforce minimum non-zero tolerance for small intervals
+        if (expectedInterval > 0 && tolerance == 0) {
+            tolerance = 1;
+        }
 
         for (uint256 i = 1; i < timestamps.length; i++) {
             uint256 actualInterval = timestamps[i] - timestamps[i - 1];
-            if (actualInterval < expectedInterval - tolerance || actualInterval > expectedInterval + tolerance) {
+            // Safe bounds check to avoid underflow
+            uint256 minInterval = tolerance <= expectedInterval ? expectedInterval - tolerance : 0;
+            uint256 maxInterval = expectedInterval + tolerance;
+            if (actualInterval < minInterval || actualInterval > maxInterval) {
                 return false;
             }
         }

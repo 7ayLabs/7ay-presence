@@ -23,7 +23,7 @@
     "rationale": {
       "type": "string",
       "pattern": "^0x[a-fA-F0-9]{64}$",
-      "description": "Optional rationale hash"
+      "description": "Optional field; when provided, must be a 32-byte hash (64 hex characters) prefixed with 0x"
     },
     "validatorSignature": {
       "type": "string",
