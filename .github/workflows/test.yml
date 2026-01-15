@@ -14,8 +14,8 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  unit:
-    name: Unit & Property Tests
+  all-tests:
+    name: All Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -29,8 +29,8 @@ jobs:
         with:
           cache: true
 
-      - name: Run property tests
-        run: forge test --match-contract PropertyTests -vvv
+      - name: Run all tests
+        run: forge test -vvv
 
   fuzz:
     name: Fuzz Tests
@@ -84,12 +84,12 @@ jobs:
           cache: true
 
       - name: Run event tests
-        run: forge test --match-contract EventTests -vvv
+        run: forge test --match-contract "Event.*Tests" -vvv
 
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
-    needs: [unit, fuzz, invariants, events]
+    needs: [all-tests, fuzz, invariants, events]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
