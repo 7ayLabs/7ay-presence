@@ -12,7 +12,7 @@ Commercial use requires a separate license from 7ayLabs.
 
 ## Current Version
 
-The protocol is currently at **v0.6**, which adds the Semantic Protocol Extension for Node Discovery and Logical Messaging.
+The protocol is currently at **v0.6.7**, which completes the Semantic Protocol Extension with advanced features for media, routing, automation, and scaling.
 
 | Version | Status | Scope |
 |---------|--------|-------|
@@ -21,7 +21,11 @@ The protocol is currently at **v0.6**, which adds the Semantic Protocol Extensio
 | v0.3 | Complete | Declaration layer (declarePresence, Declared state) |
 | v0.4 | Complete | Validators, quorum validation, disputes, slashing |
 | v0.5 | Complete | Ephemeral Data Governance (EpochCapability, EpochDataPolicy) |
-| v0.6 | Complete | Semantic Protocol Extension (Node Discovery, Messaging, State Sync) |
+| v0.6.0-0.3 | Complete | Semantic Protocol Extension (Node Discovery, Messaging, State Sync) |
+| v0.6.4 | Complete | Ephemeral Media (images/audio within epochs) |
+| v0.6.5 | Complete | Boomerang Routing (return path verification) |
+| v0.6.6 | Complete | Autonomous Transactions (pattern-based execution) |
+| v0.6.7 | Complete | Octopus Scaling (dynamic node division) |
 
 ## Usage
 
@@ -31,30 +35,15 @@ The canonical protocol documents are organized by version:
 
 **v0.6 (Current)**
 - [specs/v0.6/node-model.md](specs/v0.6/node-model.md) — Logical node structure and identity
-- [specs/v0.6/message-catalog.md](specs/v0.6/message-catalog.md) — Protocol message types and schemas
+- [specs/v0.6/message-catalog.md](specs/v0.6/message-catalog.md) — Protocol message types (0x01-0x65)
 - [specs/v0.6/discovery.md](specs/v0.6/discovery.md) — Node discovery semantics
 - [specs/v0.6/state-sync.md](specs/v0.6/state-sync.md) — State synchronization and reconciliation
-- [specs/v0.6/invariants.md](specs/v0.6/invariants.md) — v0.6 protocol invariants (INV19-26)
-- [specs/v0.6/errors.md](specs/v0.6/errors.md) — v0.6 error catalog
-
-**v0.5**
-- [specs/v0.5/ephemeral.md](specs/v0.5/ephemeral.md) — Ephemeral Data Governance Layer
-- [specs/v0.5/policy-definition.md](specs/v0.5/policy-definition.md) — EpochDataPolicy formal definition
-- [specs/v0.5/policy-commitment.md](specs/v0.5/policy-commitment.md) — Policy commitment semantics
-- [specs/v0.5/capability-immutability.md](specs/v0.5/capability-immutability.md) — EpochCapability immutability
-- [specs/v0.5/actor-scope.md](specs/v0.5/actor-scope.md) — Actor scope rules
-- [specs/v0.5/non-addressability.md](specs/v0.5/non-addressability.md) — Non-addressability of ephemeral data
-- [specs/v0.5/presence-causality.md](specs/v0.5/presence-causality.md) — Presence-data causality
-- [specs/v0.5/compliance-hooks.md](specs/v0.5/compliance-hooks.md) — Compliance and audit hooks
-
-**v0.4**
-- [specs/v0.4/presence.md](specs/v0.4/presence.md) — Presence lifecycle with validation, disputes, slashing
-- [specs/v0.4/validator.md](specs/v0.4/validator.md) — Validator management and quorum mechanics
-- [specs/v0.4/errors.md](specs/v0.4/errors.md) — Error catalog with priority ordering
-
-**Foundation**
-- [specs/v0.2/epoch.md](specs/v0.2/epoch.md) — Epoch lifecycle specification
-- [specs/model.md](specs/model.md) — Conceptual model and definitions
+- [specs/v0.6/ephemeral-media.md](specs/v0.6/ephemeral-media.md) — Ephemeral media (v0.6.4)
+- [specs/v0.6/boomerang.md](specs/v0.6/boomerang.md) — Boomerang routing (v0.6.5)
+- [specs/v0.6/autonomous.md](specs/v0.6/autonomous.md) — Autonomous transactions (v0.6.6)
+- [specs/v0.6/octopus.md](specs/v0.6/octopus.md) — Octopus scaling (v0.6.7)
+- [specs/v0.6/invariants.md](specs/v0.6/invariants.md) — Protocol invariants (INV19-42)
+- [specs/v0.6/errors.md](specs/v0.6/errors.md) — Error catalog
 
 ### Running the Reference Implementation
 
@@ -110,54 +99,14 @@ forge test --match-contract ValidatorRegistryUnitTests
 
 **State Synchronization** — The process by which nodes maintain consistent views of protocol state. Uses deterministic reconciliation to ensure identical state roots.
 
-## Invariants
+**Ephemeral Media** — Images (JPEG, PNG, WebP) and audio (MP3, AAC, Opus) that exist only within an epoch's Active state. Bound by media policy constraints (size, type, TTL).
 
-### Presence Invariants
-1. An actor MUST NOT have more than one finalized presence per epoch
-2. Terminal states (Finalized, Slashed) MUST NOT be modified
-3. Presence state transitions MUST be deterministic and idempotent
-4. Only the actor itself MAY declare its own presence
-5. Presence finalization requires validator quorum validation
-6. A pending dispute blocks presence finalization
+**Boomerang Routing** — A message routing pattern with return path verification. Messages travel forward to a destination, then return via a divergent path for confirmation.
 
-### Validator Invariants
-7. Active validator count MUST NOT drop below minimum (3)
-8. Removed validators MUST NOT return to Active state
-9. Quorum size MUST be achievable with current validators
-10. Only validator authority MAY add/remove validators
+**Autonomous Transactions** — Pattern-based automatic transactions for frequent users. Requires validated presence, pattern threshold, and validator quorum finalization.
 
-### Epoch Invariants
-11. Epoch states are derived from `block.timestamp` (no storage writes)
-12. Declaration and validation only during Active epochs
-13. Finalization only after epoch is Closed
+**Octopus Scaling** — Dynamic node division based on throughput. Nodes divide into up to 4 sub-nodes when throughput exceeds 45%, and merge when below 20% for sustained periods.
 
-### Ephemeral Data Invariants (v0.5)
-14. Ephemeral Data MUST NOT exist outside Active epoch
-15. Ephemeral Data MUST NOT be readable after epoch termination
-16. Actors leaving epoch MUST immediately lose Ephemeral Data access
-17. Ephemeral Data MUST NOT influence presence state (orthogonality)
-18. Ephemeral Data MUST NOT be persisted or finalized
-
-### Semantic Protocol Invariants (v0.6)
-19. Node identity MUST be derivable from on-chain state
-20. Node MUST be bound to exactly one epoch at any time
-21. Discovery MUST NOT return nodes from different epochs
-22. Only nodes with valid presence (Declared/Validated/Finalized) are discoverable
-23. All messages MUST reference a valid epoch
-24. Message signature MUST verify against sender address
-25. Each (sender, nonce) pair MUST be unique per epoch
-26. Given identical on-chain state, reconciliation MUST be deterministic
-
-## Versions
-
-Protocol versions are available in the `specs/` directory:
-
-- `specs/v0.1/` — MVP presence specification
-- `specs/v0.2/` — Epoch lifecycle specification
-- `specs/v0.3/` — Declaration layer specification
-- `specs/v0.4/` — Validators, disputes, slashing
-- `specs/v0.5/` — Ephemeral Data Governance
-- `specs/v0.6/` — Semantic Protocol Extension (current)
 
 ## License
 
