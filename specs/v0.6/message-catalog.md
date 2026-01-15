@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.6.6
+**Version:** v0.6.7
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.6
+**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.7
 
 ---
 
@@ -101,7 +101,15 @@ enum MessageType {
   AUTONOMOUS_PATTERN = 0x51,
   AUTONOMOUS_EXECUTE = 0x52,
   AUTONOMOUS_FINALIZE = 0x53,
-  AUTONOMOUS_REVOKE = 0x54
+  AUTONOMOUS_REVOKE = 0x54,
+
+  // Octopus (0x60-0x6F) — v0.6.7
+  OCTOPUS_THRESHOLD = 0x60,
+  OCTOPUS_DIVIDE = 0x61,
+  OCTOPUS_SUBNODE = 0x62,
+  OCTOPUS_COORDINATE = 0x63,
+  OCTOPUS_MERGE = 0x64,
+  OCTOPUS_STATE_SHARE = 0x65
 }
 ```
 
@@ -613,3 +621,4 @@ This specification explicitly does NOT define:
 | v0.6.4 | Added Media messages (0x30-0x33) |
 | v0.6.5 | Added Boomerang messages (0x40-0x43) |
 | v0.6.6 | Added Autonomous messages (0x50-0x54) |
+| v0.6.7 | Added Octopus messages (0x60-0x65) |
