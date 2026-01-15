@@ -250,11 +250,12 @@ The return path MUST differ from the forward path:
 
 ```
 ∀ boomerang:
-  forwardPath.intermediateNodes ∩ returnPath.intermediateNodes ≠
-  forwardPath.intermediateNodes ∪ returnPath.intermediateNodes
+  forwardPath.intermediateNodes ≠ returnPath.intermediateNodes
 ```
 
-In simpler terms: at least one intermediate node must be different.
+At least one intermediate node must be different between forward and return paths.
+This can be achieved by having different intermediaries, different path lengths,
+or any combination that results in non-identical intermediate node sets.
 
 ### 5.2 Valid Divergence Examples
 
