@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/boomerang-send.schema.json",
+  "title": "BoomerangSendPayload",
+  "description": "Payload for BOOMERANG_SEND (0x40) message - initiates a boomerang cycle",
+  "type": "object",
+  "properties": {
+    "boomerangId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Unique cycle identifier (bytes32)"
+    },
+    "destination": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Final destination node address"
+    },
+    "innerPayload": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]*$",
+      "description": "Actual message content (bytes)"
+    },
+    "innerPayloadHash": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Hash of inner payload for verification (bytes32)"
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 300,
+      "description": "Max seconds for full cycle (max 5 minutes)"
+    },
+    "sentAt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Send timestamp (Unix seconds)"
+    },
+    "preferredReturnPath": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^0x[a-fA-F0-9]{40}$"
+      },
+      "description": "Suggested return route (optional)"
+    }
+  },
+  "required": [
+    "boomerangId",
+    "destination",
+    "innerPayload",
+    "innerPayloadHash",
+    "timeout",
+    "sentAt"
+  ],
+  "additionalProperties": false
+}
