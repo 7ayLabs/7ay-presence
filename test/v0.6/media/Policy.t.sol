@@ -40,8 +40,7 @@ contract MediaPolicyTest is Test {
 
     // Default media policy JSON (v0.6.4)
     // Extracted as constant for maintainability - update here if policy structure changes
-    string public constant MEDIA_POLICY_JSON =
-        '{"version":"1.0.0","allowedImageTypes":["image/jpeg","image/png","image/webp"],'
+    string public constant MEDIA_POLICY_JSON = '{"version":"1.0.0","allowedImageTypes":["image/jpeg","image/png","image/webp"],'
         '"allowedAudioTypes":["audio/mp3","audio/aac","audio/opus"],'
         '"maxImageSize":5242880,"maxAudioSize":10485760,"maxAudioDuration":60,'
         '"maxTTL":3600,"propagationScope":"LocalOnly"}';
