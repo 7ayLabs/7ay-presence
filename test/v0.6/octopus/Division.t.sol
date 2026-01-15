@@ -220,7 +220,11 @@ contract OctopusDivisionTest is Test {
     }
 
     function _canDivide(uint256 currentCount) internal pure returns (bool) {
-        // Can only divide from 0/1 (to get 2) or from 2 (to get 4)
+        // currentCount = number of existing sub-nodes for a parent
+        // 0 = parent exists with no sub-nodes (can divide to 2)
+        // 1 = parent has 1 sub-node (treated as 0, can divide to 2)
+        // 2 = parent has 2 sub-nodes (can divide to 4)
+        // 3+ = cannot divide further (max 4 sub-nodes per INV40)
         return currentCount <= 2;
     }
 

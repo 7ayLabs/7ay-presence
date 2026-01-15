@@ -313,32 +313,35 @@ contract OctopusCoordinationTest is Test {
         return !_isHeartbeatValid(lastHeartbeat, block.timestamp);
     }
 
-    function _getFailoverRange(
-        uint256, /* absorberIndex */
-        uint256 /* failedIndex */
-    )
+    function _getFailoverRange(uint256 absorberIndex, uint256 failedIndex)
         internal
         pure
         returns (uint256 start, uint256 end)
     {
-        // After absorbing, covers full range
-        return (0, 255);
+        // In a 2-node setup, whichever sub-node survives takes over the full range.
+        // We only support symmetric 2-node failover here: indices (0,1) or (1,0).
+        if ((absorberIndex == 0 && failedIndex == 1) || (absorberIndex == 1 && failedIndex == 0)) {
+            return (0, 255);
+        }
+        revert("Unsupported failover range configuration");
     }
 
-    function _redistributeRange(
-        uint256 absorberIndex,
-        uint256 failedIndex,
-        uint256 /* totalSubNodes */
-    )
+    function _redistributeRange(uint256 absorberIndex, uint256 failedIndex, uint256 totalSubNodes)
         internal
         pure
         returns (uint256 start, uint256 end)
     {
-        // S1 absorbs S2: [64-127] + [128-191] = [64-191]
-        if (absorberIndex == 1 && failedIndex == 2) {
-            return (64, 191);
-        }
-        revert("Unsupported redistribution");
+        // Generic redistribution for evenly-partitioned 0-255 space.
+        // Each subnode initially covers a contiguous range of size (256 / totalSubNodes),
+        // so absorber takes over a continuous range spanning both indices.
+        require(totalSubNodes > 0, "totalSubNodes must be > 0");
+        uint256 rangeSize = 256 / totalSubNodes;
+
+        uint256 lowIndex = absorberIndex < failedIndex ? absorberIndex : failedIndex;
+        uint256 highIndex = absorberIndex > failedIndex ? absorberIndex : failedIndex;
+
+        start = lowIndex * rangeSize;
+        end = (highIndex + 1) * rangeSize - 1;
     }
 
     function _canMerge(bool[] memory statesReceived) internal pure returns (bool) {

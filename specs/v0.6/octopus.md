@@ -517,12 +517,12 @@ State sync with octopus nodes:
 
 | Code | Name | Condition |
 |------|------|-----------|
-| OCTO_001 | ThresholdNotMet | Division requested below 45% |
-| OCTO_002 | MaxSubNodesReached | Already at 4 sub-nodes |
+| OCTO_001 | BelowActivationThreshold | Division requested below 45% |
+| OCTO_002 | SubNodeLimitReached | Already at 4 sub-nodes |
 | OCTO_003 | InvalidSubNodeId | Sub-node ID doesn't match derivation |
-| OCTO_004 | ParentNotFound | Referenced parent doesn't exist |
-| OCTO_005 | MergeIncomplete | Missing sub-node states for merge |
-| OCTO_006 | HysteresisNotMet | Merge requested before sustained low |
+| OCTO_004 | HysteresisNotMet | Merge requested before sustained low |
+| OCTO_005 | StateReconciliationFailed | Missing sub-node states for merge |
+| OCTO_006 | InvalidDivisionState | Cannot divide/merge in current state |
 
 ---
 
@@ -576,8 +576,8 @@ const OctopusConfig = {
 ## 14. References
 
 - node-model.md v0.6.2 — Node structure
-- message-catalog.md v0.6.6 — Message types
-- invariants.md v0.6.6 — Protocol invariants
+- message-catalog.md v0.6.7 — Message types
+- invariants.md v0.6.7 — Protocol invariants
 - state-sync.md v0.6.1 — State synchronization
 
 ---
