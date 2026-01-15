@@ -38,15 +38,16 @@ contract MediaPolicyTest is Test {
     uint256 public startTime;
     uint256 public endTime;
 
+    // Default media policy JSON (v0.6.4)
+    // Extracted as constant for maintainability - update here if policy structure changes
+    string public constant MEDIA_POLICY_JSON =
+        '{"version":"1.0.0","allowedImageTypes":["image/jpeg","image/png","image/webp"],'
+        '"allowedAudioTypes":["audio/mp3","audio/aac","audio/opus"],'
+        '"maxImageSize":5242880,"maxAudioSize":10485760,"maxAudioDuration":60,'
+        '"maxTTL":3600,"propagationScope":"LocalOnly"}';
+
     // Media policy hash (keccak256 of default policy JSON)
-    bytes32 public mediaPolicyHash = keccak256(
-        abi.encodePacked(
-            '{"version":"1.0.0","allowedImageTypes":["image/jpeg","image/png","image/webp"],'
-            '"allowedAudioTypes":["audio/mp3","audio/aac","audio/opus"],'
-            '"maxImageSize":5242880,"maxAudioSize":10485760,"maxAudioDuration":60,'
-            '"maxTTL":3600,"propagationScope":"LocalOnly"}'
-        )
-    );
+    bytes32 public mediaPolicyHash = keccak256(bytes(MEDIA_POLICY_JSON));
 
     function setUp() public {
         startTime = block.timestamp + 1 hours;

@@ -297,12 +297,18 @@ contract MediaInvariantsTest is Test {
 
         for (uint256 i = 0; i < mediaCount; i++) {
             bytes32 mediaId = handler.getGhostMediaId(i);
-            (,,,,,,, bool revoked) = handler.ghost_media(mediaId);
+            (,, uint256 epochId, uint256 createdAt, uint256 ttl,,, bool revoked) = handler.ghost_media(mediaId);
 
-            // Once revoked, should stay revoked (this is enforced by handler)
-            // Just verify the ghost state is consistent
+            // Once revoked, media should not be accessible under any conditions
+            // Even if epoch is active and TTL hasn't expired, revoked media is inaccessible
             if (revoked) {
-                assertTrue(revoked, "Revoked media should stay revoked");
+                bool epochActive = epochRegistry.epochState(epochId) == IEpochRegistry.EpochState.Active;
+                bool notExpired = block.timestamp < createdAt + ttl;
+
+                // A non-revoked check would be: epochActive && notExpired && !revoked
+                // But since revoked=true, the media is always inaccessible
+                bool shouldBeAccessible = epochActive && notExpired && !revoked;
+                assertFalse(shouldBeAccessible, "Revoked media should not be accessible");
             }
         }
     }

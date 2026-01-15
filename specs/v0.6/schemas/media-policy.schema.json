@@ -57,7 +57,7 @@
     "maxAudioDuration": {
       "type": "integer",
       "description": "Maximum audio duration in seconds",
-      "minimum": 0,
+      "minimum": 1,
       "maximum": 300,
       "default": 60
     },
