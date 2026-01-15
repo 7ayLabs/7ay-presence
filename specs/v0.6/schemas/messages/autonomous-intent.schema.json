@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://7ay.io/schemas/v0.6/messages/autonomous-intent.schema.json",
+  "title": "AutonomousIntentPayload",
+  "description": "Payload for AUTONOMOUS_INTENT (0x50) message - declares autonomous transaction intent",
+  "type": "object",
+  "properties": {
+    "intentId": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Unique intent identifier (bytes32)"
+    },
+    "intentHash": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Hash of intent details for verification (bytes32)"
+    },
+    "actionType": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{64}$",
+      "description": "Type of action (e.g., keccak256('transfer'), keccak256('vote'))"
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/IntentCondition"
+      },
+      "maxItems": 10,
+      "description": "Conditions for auto-execution"
+    },
+    "maxExecutions": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Max times can execute (0 = unlimited within epoch)"
+    },
+    "expiresAt": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Intent expiration timestamp (Unix seconds)"
+    },
+    "commitmentProof": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]*$",
+      "description": "Proof of on-chain commitment"
+    }
+  },
+  "required": [
+    "intentId",
+    "intentHash",
+    "actionType",
+    "conditions",
+    "maxExecutions",
+    "expiresAt"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "IntentCondition": {
+      "type": "object",
+      "properties": {
+        "conditionType": {
+          "type": "string",
+          "enum": ["frequency", "periodic", "conditional", "threshold"],
+          "description": "Type of condition"
+        },
+        "parameters": {
+          "type": "string",
+          "pattern": "^0x[a-fA-F0-9]*$",
+          "description": "Condition-specific parameters (encoded bytes)"
+        }
+      },
+      "required": ["conditionType", "parameters"],
+      "additionalProperties": false
+    }
+  }
+}
