@@ -24,6 +24,42 @@ specs/
 
 ---
 
+## Architecture (7aychain)
+
+The 7ay Presence Protocol runs on a dedicated Substrate-based blockchain.
+
+### On-Chain (Substrate Pallets)
+
+Core consensus primitives with permanent state stored in blockchain storage.
+
+| Pallet | Purpose | Specs |
+|--------|---------|-------|
+| `pallet-presence` | Presence state machine, validation votes | core/presence.md |
+| `pallet-epochs` | Epoch lifecycle, capabilities, policy hashes | core/epochs.md |
+| `pallet-validators` | Validator registry, quorum, authority | core/validators.md |
+| `pallet-disputes` | Dispute records, votes, resolution | core/disputes.md |
+| `pallet-ephemeral` | Key destruction attestations (INV44) | governance/ephemeral.md |
+| `pallet-messaging` | Chain binding (INV43), nonce tracking | semantic/message-catalog.md |
+
+### Off-Chain (P2P / Node Software)
+
+Network coordination validated against on-chain state.
+
+| Component | Purpose | Specs |
+|-----------|---------|-------|
+| P2P Discovery | Node announcement, peer queries | semantic/discovery.md |
+| P2P Messaging | Protocol message exchange | semantic/message-catalog.md |
+| State Sync | Validator state reconciliation | semantic/state-sync.md |
+| Ephemeral Data | Encrypted temporary data (memory only) | governance/ephemeral.md |
+| Boomerang Router | Return path verification | extensions/boomerang.md |
+| Octopus Coordinator | Sub-node scaling | extensions/octopus.md |
+
+### Key Principle
+
+Ephemeral data content and encryption keys are NEVER stored on-chain.
+
+---
+
 ## Core
 
 Fundamental protocol primitives. Required for any implementation.
@@ -85,7 +121,7 @@ Cross-cutting documentation and implementation guides.
 | [overview.md](reference/overview.md) | Protocol vision and principles |
 | [model.md](reference/model.md) | Conceptual system model |
 | [state-machine.md](reference/state-machine.md) | Consolidated state transitions |
-| [invariants.md](reference/invariants.md) | Protocol invariants (INV1-42) |
+| [invariants.md](reference/invariants.md) | Protocol invariants (INV1-45) |
 | [errors.md](reference/errors.md) | Error catalog and priority |
 | [substrate.md](reference/substrate.md) | Rust/Substrate implementation notes |
 

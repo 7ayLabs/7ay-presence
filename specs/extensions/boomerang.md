@@ -29,6 +29,19 @@ This version does **NOT** define:
 - Path selection optimization
 - QoS guarantees
 
+### 1.1 Architecture (7aychain)
+
+| Component | Layer | Description |
+|-----------|-------|-------------|
+| Boomerang Messages | **Off-chain (P2P)** | All BOOMERANG_* messages via P2P network |
+| Hop Signatures | **Off-chain** | Each hop signed by forwarding node |
+| Path Verification | **Off-chain** | Verification chain validated by receiver |
+| Node Identity | **On-chain** | Forwarder presence validated via `pallet-presence` |
+| Timeout Extension Votes | **Off-chain** | Validator votes collected off-chain |
+| Boomerang State | **Off-chain** | Cycle state maintained in node memory |
+
+Boomerang routing is entirely off-chain but validates node identities against on-chain presence.
+
 ---
 
 ## 2. Overview

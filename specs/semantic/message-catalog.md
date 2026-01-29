@@ -27,6 +27,17 @@ This version does **NOT** define:
 - Network topology
 - Delivery guarantees
 
+### 1.1 Architecture (7aychain)
+
+| Component | Layer | Description |
+|-----------|-------|-------------|
+| Message Exchange | **Off-chain (P2P)** | Messages sent between nodes via P2P network |
+| Chain Binding (INV43) | **On-chain** | `chain_id` verified against `pallet-messaging` |
+| Nonce Tracking (INV25) | **On-chain** | Nonce uniqueness enforced in `pallet-messaging` |
+| Signature Verification | **Off-chain** | Verified by receiving node against sender's public key |
+| Epoch Reference | **On-chain** | `epochId` validated against `pallet-epochs` |
+| Sender Presence | **On-chain** | Sender's presence validated against `pallet-presence` |
+
 ---
 
 ## 2. Message Envelope

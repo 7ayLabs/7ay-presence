@@ -39,6 +39,22 @@ not to enable communication features.
 
 Implementations MUST follow this specification to be considered compliant.
 
+### 1.1 Architecture (7aychain)
+
+| Component | Layer | Description |
+|-----------|-------|-------------|
+| Epoch Capability | **On-chain** | Stored in `pallet-epochs` at epoch creation |
+| Data Policy Hash | **On-chain** | Policy hash stored in `pallet-epochs` |
+| Full Policy Document | **Off-chain** | JSON policy stored off-chain, verified by hash |
+| Ephemeral Data | **Off-chain (memory)** | NEVER stored on-chain, exists only in node memory |
+| Encryption Keys | **Off-chain (memory)** | Derived via HKDF, NEVER on-chain |
+| Key Shares | **Off-chain** | Shamir shares distributed to validators |
+| Destruction Attestations | **On-chain** | Stored in `pallet-ephemeral` for INV44 |
+| Epoch State | **On-chain** | Epoch lifecycle in `pallet-epochs` |
+
+**Critical:** Ephemeral data content and encryption keys are NEVER stored on-chain.
+Only governance metadata (capability, policy hash, destruction attestations) is on-chain.
+
 ---
 
 ## 2. Definitions

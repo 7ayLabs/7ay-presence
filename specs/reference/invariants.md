@@ -288,23 +288,60 @@ Sub-node identity MUST be derived from parent, index, epoch, and verifiable rand
 
 ## 5. Invariant Enforcement
 
-### 5.1 Enforcement Model
+### 5.1 7aychain Architecture
 
-| Invariant | Enforcement Layer | Mechanism |
-|-----------|-------------------|-----------|
-| INV1-13 | On-chain | Substrate pallet ensure!/Error |
-| INV14-18 | Off-chain | Implementation constraints |
-| INV19-20 | Off-chain | Node validation |
-| INV21-22 | Off-chain | Discovery filtering |
-| INV23-25 | Off-chain | Message validation |
-| INV26 | Off-chain | Reconciliation algorithm |
-| INV27-29 | Off-chain | Media validation |
-| INV30-33 | Off-chain | Boomerang routing validation |
-| INV34-37 | Off-chain | Autonomous execution validation |
-| INV38-42 | Off-chain | Octopus scaling validation |
-| INV43 | Off-chain | Message envelope validation (chain_id, block_bound) |
-| INV44 | Off-chain | Validator attestation collection |
-| INV45 | Off-chain | Rate limiter enforcement |
+The 7ay Presence Protocol is implemented on a dedicated Substrate-based blockchain (7aychain).
+
+**On-Chain (Substrate Pallets)**
+Core consensus primitives with permanent state stored in blockchain storage.
+
+**Off-Chain (P2P Layer)**
+Network coordination validated against on-chain state, running in node software.
+
+**Hybrid**
+Some data stored on-chain (hashes, attestations), with full data off-chain.
+
+### 5.2 Enforcement Model
+
+| Invariant | Layer | Pallet/Component | Description |
+|-----------|-------|------------------|-------------|
+| INV1-13 | **On-chain** | `pallet-presence` | Presence state machine, validation votes |
+| INV14-18 | **Off-chain** | P2P + memory | Ephemeral data lifecycle (keys never on-chain) |
+| INV19-20 | **Hybrid** | `pallet-presence` → P2P | Node identity derived from on-chain presence |
+| INV21-22 | **Off-chain** | P2P discovery | Discovery validates against on-chain state |
+| INV23-25 | **Off-chain** | P2P messaging | Messages reference on-chain epochs |
+| INV26 | **Off-chain** | P2P state sync | Sync verifies against on-chain state |
+| INV27-29 | **Off-chain** | P2P media | Media bound to on-chain epoch capability |
+| INV30-33 | **Off-chain** | P2P routing | Boomerang routing between nodes |
+| INV34-37 | **Hybrid** | `pallet-autonomous` → P2P | Intent hash on-chain, patterns off-chain |
+| INV38-42 | **Off-chain** | P2P scaling | Sub-nodes derive from on-chain identity |
+| INV43 | **On-chain** | `pallet-messaging` | Chain binding verified in pallet |
+| INV44 | **On-chain** | `pallet-ephemeral` | Destruction attestations stored on-chain |
+| INV45 | **Off-chain** | P2P discovery | Rate limiting in node software |
+
+### 5.3 On-Chain Pallets
+
+| Pallet | Storage | Invariants |
+|--------|---------|------------|
+| `pallet-presence` | Presences, ValidationVotes, VoteCounts | INV1-13 |
+| `pallet-epochs` | Epochs, Capabilities, PolicyHashes | INV14 (boundary) |
+| `pallet-validators` | Validators, Quorum, Authority | INV10-11 |
+| `pallet-disputes` | Disputes, DisputeVotes, Resolutions | INV12-13 |
+| `pallet-ephemeral` | DestructionAttestations | INV44 |
+| `pallet-messaging` | ChainId, NonceTracking | INV43, INV25 |
+| `pallet-autonomous` | IntentHashes, ExecutionCounts | INV34 (partial) |
+
+### 5.4 Off-Chain Components
+
+| Component | Purpose | Validates Against |
+|-----------|---------|-------------------|
+| P2P Discovery | Node announcement, peer queries | On-chain presence state |
+| P2P Messaging | Protocol message exchange | On-chain epoch capability |
+| P2P State Sync | Validator state reconciliation | On-chain state roots |
+| Ephemeral Storage | Encrypted temporary data | On-chain epoch bounds |
+| Key Management | HKDF derivation, Shamir sharing | On-chain validator set |
+| Boomerang Router | Return path verification | On-chain node identities |
+| Octopus Coordinator | Sub-node management | On-chain parent identity |
 
 ---
 
@@ -312,10 +349,10 @@ Sub-node identity MUST be derived from parent, index, epoch, and verifiable rand
 
 An implementation is considered compliant if and only if:
 - All invariants INV1-45 hold under all conditions
-- Violations are detected and handled appropriately
-- On-chain invariants are enforced via smart contracts
-- Off-chain invariants are enforced via client validation
-- Security invariants (INV43-45) are enforced at message/query boundaries
+- On-chain invariants are enforced via Substrate pallets
+- Off-chain invariants validate against on-chain state
+- Hybrid invariants have on-chain anchors with off-chain execution
+- Security invariants (INV43-45) are enforced at appropriate boundaries
 
 ---
 

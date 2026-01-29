@@ -23,6 +23,21 @@ This version defines:
 - State consistency guarantees (INV41)
 - Hysteresis-based deactivation (INV42)
 
+### 1.1 Architecture (7aychain)
+
+| Component | Layer | Description |
+|-----------|-------|-------------|
+| Parent Node Identity | **On-chain** | Parent address stored in `pallet-presence` |
+| Sub-Node Identity | **Derived** | Derived from on-chain parent + epoch randomness |
+| Epoch Randomness (VRF) | **On-chain** | VRF output committed to `pallet-epochs` |
+| Octopus Messages | **Off-chain (P2P)** | All OCTOPUS_* messages via P2P network |
+| Throughput Monitoring | **Off-chain** | Node tracks its own throughput |
+| Sub-Node Coordination | **Off-chain (P2P)** | Heartbeat, load balancing via P2P |
+| State Reconciliation | **Off-chain** | Sub-node states merged off-chain |
+
+Sub-node IDs are cryptographically derived from on-chain data (parent identity + VRF randomness)
+but sub-nodes themselves operate entirely off-chain.
+
 ---
 
 ## 2. Motivation

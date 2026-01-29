@@ -27,6 +27,18 @@ This version does **NOT** define:
 - NAT traversal
 - Bootstrap mechanisms
 
+### 1.1 Architecture (7aychain)
+
+| Component | Layer | Description |
+|-----------|-------|-------------|
+| Peer Discovery | **Off-chain (P2P)** | Nodes discover each other via P2P protocol |
+| Node Announcement | **Off-chain (P2P)** | NODE_ANNOUNCE broadcast to network |
+| Presence Verification | **On-chain** | Validates sender presence via `pallet-presence` |
+| Epoch Scoping (INV21) | **On-chain** | Epoch existence checked via `pallet-epochs` |
+| Validator Role Check | **On-chain** | Validator status via `pallet-validators` |
+| Rate Limiting (INV45) | **Off-chain** | Enforced in node software |
+| Peer List | **Off-chain** | Maintained in node memory, not on-chain |
+
 ---
 
 ## 2. Discovery Model
