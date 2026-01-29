@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.6.7
+**Version:** v0.6.9
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.7
+**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.9
 
 ---
 
@@ -27,6 +27,17 @@ This version does **NOT** define:
 - Network topology
 - Delivery guarantees
 
+### 1.1 Architecture (7aychain)
+
+| Component | Layer | Description |
+|-----------|-------|-------------|
+| Message Exchange | **Off-chain (P2P)** | Messages sent between nodes via P2P network |
+| Chain Binding (INV43) | **On-chain** | `chain_id` verified against `pallet-messaging` |
+| Nonce Tracking (INV25) | **On-chain** | Nonce uniqueness enforced in `pallet-messaging` |
+| Signature Verification | **Off-chain** | Verified by receiving node against sender's public key |
+| Epoch Reference | **On-chain** | `epochId` validated against `pallet-epochs` |
+| Sender Presence | **On-chain** | Sender's presence validated against `pallet-presence` |
+
 ---
 
 ## 2. Message Envelope
@@ -38,7 +49,7 @@ All messages share a common envelope:
 ```typescript
 interface MessageEnvelope {
   // Protocol version
-  version: "0.6.0";
+  version: "0.6.9";
 
   // Message classification
   type: MessageType;
@@ -54,6 +65,8 @@ interface MessageEnvelope {
 
   // Replay protection
   nonce: bytes32;            // Random 32-byte nonce
+  chain_id: uint64;          // Chain identifier (prevents cross-chain replay)
+  block_bound: uint64;       // Message expiration block number
 
   // Cryptographic signature
   signature: bytes;          // ECDSA signature (65 bytes)
@@ -63,7 +76,22 @@ interface MessageEnvelope {
 }
 ```
 
-### 2.2 Message Type Enum
+### 2.2 Chain Binding (INV43)
+
+Messages are bound to a specific chain and block range:
+
+- `chain_id` MUST match the current chain identifier
+- `block_bound` specifies the maximum block number for message validity
+- Messages with `current_block > block_bound` MUST be rejected
+- Recommended `block_bound` = `current_block + 100` (~20 minutes on most chains)
+
+```
+∀ msg:
+  msg.chain_id == currentChainId ∧
+  currentBlock <= msg.block_bound
+```
+
+### 2.3 Message Type Enum
 
 ```typescript
 enum MessageType {
@@ -113,19 +141,21 @@ enum MessageType {
 }
 ```
 
-### 2.3 Signature Scheme
+### 2.4 Signature Scheme
 
 All messages MUST be signed by the sender:
 
 ```
 signaturePayload = keccak256(
   abi.encodePacked(
-    version,           // "0.6.0"
+    version,           // "0.6.9"
     type,              // uint8
     sender.address,    // address
     epochId,           // uint256
     timestamp,         // uint256
     nonce,             // bytes32
+    chain_id,          // uint64 (NEW: chain binding)
+    block_bound,       // uint64 (NEW: expiration)
     keccak256(payload) // bytes32
   )
 )
@@ -133,10 +163,19 @@ signaturePayload = keccak256(
 signature = ecdsaSign(signaturePayload, senderPrivateKey)
 ```
 
-### 2.4 Signature Verification
+### 2.5 Signature Verification
 
 ```
 function verifySignature(message: MessageEnvelope) → bool:
+  // 1. Verify chain binding (INV43)
+  if message.chain_id != currentChainId:
+    return false
+
+  // 2. Verify block bound (INV43)
+  if currentBlock > message.block_bound:
+    return false
+
+  // 3. Verify signature
   signaturePayload = keccak256(abi.encodePacked(
     message.version,
     message.type,
@@ -144,6 +183,8 @@ function verifySignature(message: MessageEnvelope) → bool:
     message.epochId,
     message.timestamp,
     message.nonce,
+    message.chain_id,
+    message.block_bound,
     keccak256(message.payload)
   ))
 
@@ -501,30 +542,34 @@ enum DisputeAction {
 
 All messages MUST pass:
 
-1. **Version check**: `version == "0.6.0"`
+1. **Version check**: `version == "0.6.9"`
 2. **Type validity**: `type` in defined range
 3. **Epoch check**: `epochId` exists and supports signals
-4. **Signature**: Valid ECDSA signature from sender
-5. **Presence check**: Sender has valid presence (for most messages)
-6. **Nonce check**: Nonce not previously used by sender in epoch
-7. **Timestamp**: Within acceptable window (±5 minutes)
+4. **Chain binding**: `chain_id == currentChainId` (INV43)
+5. **Block bound**: `currentBlock <= block_bound` (INV43)
+6. **Signature**: Valid ECDSA signature from sender
+7. **Presence check**: Sender has valid presence (for most messages)
+8. **Nonce check**: Nonce not previously used by sender in epoch
+9. **Timestamp**: Within acceptable window (±5 minutes)
 
 ### 6.2 Validation Order
 
 ```
 1. version      → MSG_008
 2. type         → MSG_001
-3. epochId      → MSG_004
-4. signature    → MSG_002
-5. presence     → MSG_005
-6. nonce        → MSG_003
-7. timestamp    → MSG_006
-8. payload      → MSG_007
+3. chain_id     → MSG_009 (INV43)
+4. block_bound  → MSG_010 (INV43)
+5. epochId      → MSG_004
+6. signature    → MSG_002
+7. presence     → MSG_005
+8. nonce        → MSG_003
+9. timestamp    → MSG_006
+10. payload     → MSG_007
 ```
 
 ### 6.3 Error Responses
 
-See `errors.md v0.6.1` for error codes:
+See `errors.md v0.6.9` for error codes:
 - MSG_001: InvalidMessageType
 - MSG_002: InvalidSignature
 - MSG_003: NonceReused
@@ -533,6 +578,8 @@ See `errors.md v0.6.1` for error codes:
 - MSG_006: MessageExpired
 - MSG_007: InvalidPayload
 - MSG_008: VersionMismatch
+- MSG_009: ChainMismatch (INV43)
+- MSG_010: BlockBoundExceeded (INV43)
 
 ---
 
@@ -549,20 +596,43 @@ Message signature MUST verify against sender's address.
 **INV25: Nonce Uniqueness**
 Each (sender, nonce) pair MUST be unique within an epoch.
 
+**INV43: Chain Binding** (v0.6.9)
+Messages MUST be bound to the current chain and within block bounds.
+
+```
+∀ msg:
+  msg.chain_id == currentChainId ∧
+  currentBlock <= msg.block_bound
+```
+
+This invariant prevents:
+- **Cross-chain replay**: Messages cannot be replayed on different chains
+- **Delayed replay**: Messages expire after block_bound, preventing replay attacks
+- **Fork attacks**: Messages signed for one fork are invalid on others
+
 ### 7.2 Enforcement
 
-See `invariants.md v0.6.1` for formal definitions.
+See `invariants.md v0.6.9` for formal definitions.
 
 ---
 
 ## 8. Security Considerations
 
-### 8.1 Replay Protection
+### 8.1 Replay Protection (Enhanced v0.6.9)
 
-Replay attacks are prevented by:
-- Unique nonce per message
-- Epoch binding (messages invalid after epoch closes)
-- Timestamp validation
+Replay attacks are prevented by multiple layers:
+- **Unique nonce** per message (INV25)
+- **Epoch binding** (messages invalid after epoch closes)
+- **Timestamp validation** (±5 minute window)
+- **Chain binding** via `chain_id` (INV43) — prevents cross-chain replay
+- **Block bound** via `block_bound` (INV43) — prevents delayed replay
+
+The chain binding mechanism ensures:
+```
+1. Messages cannot be replayed on forks or sidechains
+2. Messages expire after ~100 blocks (~20 minutes)
+3. Old signatures become invalid automatically
+```
 
 ### 8.2 Spoofing Prevention
 
@@ -604,10 +674,10 @@ This specification explicitly does NOT define:
 
 ## 11. References
 
-- node-model.md v0.6 — Node structure (see specs/v0.6/)
-- state-sync.md v0.6 — Sync protocol (see specs/v0.6/)
-- invariants.md v0.6 — Protocol invariants INV19-26 (see specs/v0.6/)
-- errors.md v0.6 — Error catalog (see specs/v0.6/)
+- node-model.md v0.6 — Node structure
+- state-sync.md v0.6 — Sync protocol
+- invariants.md v0.6.9 — Protocol invariants INV19-26, INV43
+- errors.md v0.6.9 — Error catalog
 - presence.md v0.4 — Presence states
 - validator.md v0.4 — Validator mechanics
 
@@ -622,3 +692,4 @@ This specification explicitly does NOT define:
 | v0.6.5 | Added Boomerang messages (0x40-0x43) |
 | v0.6.6 | Added Autonomous messages (0x50-0x54) |
 | v0.6.7 | Added Octopus messages (0x60-0x65) |
+| v0.6.9 | **Security hardening**: Added chain_id, block_bound to envelope; INV43 chain binding |

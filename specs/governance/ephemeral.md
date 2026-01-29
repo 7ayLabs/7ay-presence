@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Ephemeral Data Governance
-**Version:** v0.6 (consolidated from v0.5)
+**Version:** v0.6.9 (consolidated from v0.5, security hardening)
 **Status:** Active
 **Scope:** Protocol-level (canonical)
 **Depends on:** epochs.md, presence.md, validators.md
@@ -26,15 +26,34 @@ This specification formalizes:
 
 This version does **NOT** define:
 - Data transport or messaging protocols
-- Encryption schemes or key management
+- Specific encryption algorithms (implementation choice)
 - Network topology or routing
 - SDK or client behavior
 - Storage mechanisms
+
+**v0.6.9 Addition:** This version now defines **epoch key lifecycle** including
+derivation, distribution, and cryptographic destruction (see Section 7.3).
 
 The Ephemeral Data Governance Layer exists solely to **govern data lifecycle**,
 not to enable communication features.
 
 Implementations MUST follow this specification to be considered compliant.
+
+### 1.1 Architecture (7aychain)
+
+| Component | Layer | Description |
+|-----------|-------|-------------|
+| Epoch Capability | **On-chain** | Stored in `pallet-epochs` at epoch creation |
+| Data Policy Hash | **On-chain** | Policy hash stored in `pallet-epochs` |
+| Full Policy Document | **Off-chain** | JSON policy stored off-chain, verified by hash |
+| Ephemeral Data | **Off-chain (memory)** | NEVER stored on-chain, exists only in node memory |
+| Encryption Keys | **Off-chain (memory)** | Derived via HKDF, NEVER on-chain |
+| Key Shares | **Off-chain** | Shamir shares distributed to validators |
+| Destruction Attestations | **On-chain** | Stored in `pallet-ephemeral` for INV44 |
+| Epoch State | **On-chain** | Epoch lifecycle in `pallet-epochs` |
+
+**Critical:** Ephemeral data content and encryption keys are NEVER stored on-chain.
+Only governance metadata (capability, policy hash, destruction attestations) is on-chain.
 
 ---
 
@@ -216,6 +235,137 @@ The following are INSUFFICIENT:
 - Hiding data from display
 - Database tombstoning
 
+### 7.3 Epoch Key Management (v0.6.9)
+
+Ephemeral data MUST be protected by epoch-scoped cryptographic keys with
+guaranteed destruction.
+
+#### 7.3.1 Key Derivation
+
+Epoch keys are derived using HKDF-SHA256:
+
+```rust
+pub fn derive_epoch_key(
+    master_secret: &[u8; 32],
+    epoch_id: u128,
+) -> [u8; 32] {
+    // HKDF-SHA256 key derivation
+    let salt = epoch_id.to_be_bytes();
+    let info = b"7ay-ephemeral-v1";
+
+    hkdf_sha256(master_secret, &salt, info)
+}
+```
+
+Properties:
+- Each epoch derives a unique key from the master secret
+- Key derivation is deterministic and reproducible
+- Keys are forward-secure (compromising one epoch doesn't affect others)
+
+#### 7.3.2 Key Distribution
+
+Keys are distributed using Shamir Secret Sharing (3-of-5 threshold):
+
+```rust
+pub struct KeyShare {
+    pub share_index: u8,        // 1-5
+    pub share_data: [u8; 33],   // Shamir share
+    pub validator: AccountId,   // Assigned validator
+    pub epoch_id: u128,
+}
+
+pub fn distribute_key_shares(
+    epoch_key: &[u8; 32],
+    validators: &[AccountId; 5],
+) -> Vec<KeyShare> {
+    // Shamir Secret Sharing: 3-of-5 threshold
+    shamir_split(epoch_key, threshold: 3, shares: 5)
+        .enumerate()
+        .map(|(i, share)| KeyShare {
+            share_index: i as u8 + 1,
+            share_data: share,
+            validator: validators[i],
+            epoch_id,
+        })
+        .collect()
+}
+```
+
+Requirements:
+- Minimum 5 validators for key distribution
+- Any 3 validators can reconstruct the key
+- Shares are encrypted to individual validator public keys
+
+#### 7.3.3 Key Destruction Protocol (INV44)
+
+When an epoch transitions to Closed, keys MUST be destroyed:
+
+```rust
+pub struct KeyShareDestroyed {
+    pub validator: AccountId,
+    pub epoch_id: u128,
+    pub destroyed_at: u64,
+    pub attestation_signature: [u8; 65],
+}
+
+pub struct EpochKeyDestroyed {
+    pub epoch_id: u128,
+    pub attestations: Vec<KeyShareDestroyed>,
+    pub destruction_confirmed_at: u64,
+}
+```
+
+**Destruction Sequence:**
+
+```
+1. Epoch transitions to Closed state
+2. Each validator (within destruction_window = 300 seconds):
+   a. Calls secure_zero() on key share memory
+   b. Signs destruction attestation
+   c. Broadcasts KeyShareDestroyed message
+3. When 3+ attestations received:
+   a. Key reconstruction becomes impossible
+   b. Emit EpochKeyDestroyed event
+   c. Epoch key considered irrecoverable
+```
+
+**Secure Memory Zeroing:**
+
+```rust
+pub fn secure_zero(key_material: &mut [u8]) {
+    // Volatile write to prevent compiler optimization
+    for byte in key_material.iter_mut() {
+        unsafe { std::ptr::write_volatile(byte, 0) };
+    }
+    // Memory barrier
+    std::sync::atomic::fence(Ordering::SeqCst);
+}
+```
+
+#### 7.3.4 Key Destruction Invariant (INV44)
+
+```
+∀ epoch where state = Closed:
+  ∃ attestations: Vec<KeyShareDestroyed>:
+    count(attestations) >= 3 ∧
+    ∀ a ∈ attestations:
+      a.destroyed_at <= epoch.closed_at + DESTRUCTION_WINDOW ∧
+      verify_signature(a.attestation_signature, a.validator)
+```
+
+**INV44: Key Destruction Attestation**
+When an epoch closes, at least 3 validators MUST attest to key share
+destruction within the destruction window.
+
+#### 7.3.5 Configuration
+
+| Parameter | Default | Range | Purpose |
+|-----------|---------|-------|---------|
+| key_share_threshold | 3 | 3-5 | Minimum shares for reconstruction |
+| key_share_count | 5 | 5-10 | Total shares distributed |
+| destruction_window | 300 | 60-600 | Seconds to complete destruction |
+| min_destruction_attestations | 3 | 3-5 | Required attestations |
+
 ---
 
 ## 8. Functions
@@ -285,6 +435,24 @@ pub struct EpochCreated {
 }
 ```
 
+### 9.3 Key Destruction Events (v0.6.9)
+
+```rust
+/// Emitted when a validator destroys their key share
+pub struct KeyShareDestroyed {
+    pub validator: AccountId,
+    pub epoch_id: u128,
+    pub destroyed_at: u64,
+}
+
+/// Emitted when sufficient attestations confirm key destruction
+pub struct EpochKeyDestroyed {
+    pub epoch_id: u128,
+    pub attestation_count: u32,
+    pub destruction_confirmed_at: u64,
+}
+```
+
 ---
 
 ## 10. Errors
@@ -303,6 +471,22 @@ Raised when data policy hash is required but not provided.
 
 ```rust
 InvalidDataPolicyHash
+```
+
+### 10.3 Key Management Errors (v0.6.9)
+
+```rust
+/// Insufficient validators for key distribution
+InsufficientValidatorsForKeyDistribution { required: u32, available: u32 }
+
+/// Key share already destroyed
+KeyShareAlreadyDestroyed { validator: AccountId, epoch_id: u128 }
+
+/// Destruction window expired
+DestructionWindowExpired { epoch_id: u128, window_end: u64 }
+
+/// Invalid destruction attestation signature
+InvalidDestructionAttestation { validator: AccountId }
 ```
 
 ---
@@ -332,7 +516,19 @@ All invariants from v0.4 remain in effect.
 18. **Non-Persistence**
     Ephemeral Data MUST NOT be persisted or finalized.
 
-### 11.3 Enforcement Model
+### 11.3 New in v0.6.9 (Invariant 44)
+
+44. **Key Destruction Attestation** (INV44)
+    When an epoch closes, at least 3 validators MUST attest to key share
+    destruction within the destruction window.
+
+```
+∀ epoch where state = Closed:
+  count(KeyShareDestroyed attestations) >= 3
+  within destruction_window (300 seconds)
+```
+
+### 11.4 Enforcement Model
 
 | Invariant | Enforcement |
 |-----------|-------------|
@@ -341,6 +537,7 @@ All invariants from v0.4 remain in effect.
 | INV16 | Off-chain (access revocation) |
 | INV17 | On-chain (orthogonal design) |
 | INV18 | Off-chain (no permanent storage) |
+| INV44 | Off-chain (validator attestations) |
 
 ---
 
@@ -418,6 +615,7 @@ An implementation is considered compliant if and only if:
 | Version | Changes |
 |---------|---------|
 | v0.5 | Ephemeral Data Governance Layer |
+| v0.6.9 | **Security hardening**: Epoch key management, HKDF derivation, Shamir distribution, destruction attestation (INV44) |
 
 ---
 

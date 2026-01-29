@@ -31,17 +31,17 @@ in Rust using the Substrate framework.
 
 ## 3. Type Mappings
 
-### 3.1 Solidity to Substrate
+### 3.1 Core Substrate Types
 
-| Solidity | Substrate |
-|----------|-----------|
-| `address` | `AccountId` |
-| `uint256` | `u128` or `U256` |
-| `bytes32` | `H256` |
-| `mapping(K => V)` | `StorageMap<K, V>` |
-| `mapping(K1 => mapping(K2 => V))` | `StorageDoubleMap<K1, K2, V>` |
-| `block.timestamp` | `pallet_timestamp::Pallet::<T>::now()` |
-| `msg.sender` | `ensure_signed(origin)?` |
+| Concept | Substrate Type | Notes |
+|---------|----------------|-------|
+| Account/Address | `AccountId` | 32 bytes, SS58 encoded |
+| Large Integer | `u128` or `U256` | Use `u128` for most cases |
+| Hash/Identifier | `H256` or `[u8; 32]` | 32-byte hash |
+| Key-Value Store | `StorageMap<K, V>` | Single-key mapping |
+| Nested Mapping | `StorageDoubleMap<K1, K2, V>` | Two-key mapping |
+| Current Time | `pallet_timestamp::Pallet::<T>::now()` | Unix timestamp |
+| Transaction Sender | `ensure_signed(origin)?` | Extracts AccountId from origin |
 
 ### 3.2 Enums
 
@@ -115,12 +115,13 @@ pub type Presences<T: Config> = StorageDoubleMap<
 
 ## 5. Error Handling
 
-### 5.1 Solidity to Substrate
+### 5.1 Substrate Error Patterns
 
-| Solidity | Substrate |
-|----------|-----------|
-| `require(condition, "message")` | `ensure!(condition, Error::<T>::Message)` |
-| `revert ErrorName()` | `return Err(Error::<T>::ErrorName.into())` |
+| Pattern | Substrate | Notes |
+|---------|-----------|-------|
+| Condition check | `ensure!(condition, Error::<T>::Message)` | Macro for conditional error |
+| Explicit error | `return Err(Error::<T>::ErrorName.into())` | Return typed error |
+| Option unwrap | `value.ok_or(Error::<T>::NotFound)?` | Convert Option to Result |
 
 ### 5.2 Error Definition
 
@@ -246,12 +247,12 @@ Implement invariant checks as runtime assertions or separate test modules.
 
 ## 10. Migration Considerations
 
-### 10.1 From Solidity
+### 10.1 Implementation Checklist
 
-- Re-implement all invariants (INV1-42)
-- Map error priorities to Substrate error handling
-- Preserve event structure for indexers
-- Maintain ABI compatibility where possible
+- Implement all invariants (INV1-45)
+- Follow error priority ordering in error handling
+- Emit events matching specification structure for indexers
+- Use consistent naming across pallets
 
 ### 10.2 Storage Versioning
 
