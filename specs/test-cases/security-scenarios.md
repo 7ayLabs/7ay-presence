@@ -556,7 +556,8 @@
 2. Try to increment
 
 **Expected Results:**
-- Solidity 0.8+ reverts on overflow
+- Substrate/Rust panics on overflow in debug mode
+- Checked arithmetic prevents overflow in release mode
 - Practically unreachable limit
 - No vulnerability
 

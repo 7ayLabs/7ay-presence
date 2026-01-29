@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Octopus Scaling
-**Version:** v0.6.7
+**Version:** v0.6.9
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** node-model.md v0.6.2, message-catalog.md v0.6.6, invariants.md v0.6.6
+**Depends on:** node-model.md v0.6.2, message-catalog.md v0.6.9, invariants.md v0.6.9
 
 ---
 
@@ -124,32 +124,88 @@ Throughput %
 
 ## 4. Sub-Node Identity
 
-### 4.1 Identity Derivation (INV39)
+### 4.1 Identity Derivation (INV39 — Updated v0.6.9)
 
-Sub-node identities are derived from the parent node:
+Sub-node identities are derived from the parent node with epoch binding
+and verifiable randomness to prevent pre-computation attacks:
 
 ```typescript
 function deriveSubNodeId(
   parentAddress: Address,
-  subNodeIndex: number  // 0-3
+  subNodeIndex: number,     // 0-3
+  epochId: uint256,         // Epoch binding (v0.6.9)
+  epochRandomness: bytes32  // VRF output (v0.6.9)
 ): bytes32 {
-  return keccak256(abi.encodePacked(parentAddress, subNodeIndex));
+  return keccak256(abi.encodePacked(
+    parentAddress,
+    subNodeIndex,
+    epochId,
+    epochRandomness
+  ));
 }
 ```
 
-**INV39: Sub-Node Identity**
-Sub-node identity MUST be deterministically derived from parent.
+### 4.2 Epoch Randomness (v0.6.9)
+
+Epoch randomness is generated using a Verifiable Random Function (VRF):
+
+```typescript
+interface EpochRandomness {
+  // VRF output
+  randomness: bytes32;
+  // VRF proof for verification
+  proof: bytes;
+  // Generating validator
+  validator: Address;
+}
+
+function generateEpochRandomness(
+  validatorPrivateKey: bytes32,
+  epochId: uint256
+): EpochRandomness {
+  // VRF computation
+  const { output, proof } = vrf_prove(validatorPrivateKey, epochId);
+
+  return {
+    randomness: output,
+    proof: proof,
+    validator: deriveAddress(validatorPrivateKey)
+  };
+}
+
+function verifyEpochRandomness(
+  validatorPublicKey: bytes,
+  epochId: uint256,
+  randomness: EpochRandomness
+): bool {
+  return vrf_verify(
+    validatorPublicKey,
+    epochId,
+    randomness.randomness,
+    randomness.proof
+  );
+}
+```
+
+**Security Properties:**
+- **Unpredictability**: Cannot pre-compute sub-node IDs before epoch randomness is revealed
+- **Verifiability**: Any node can verify the randomness was correctly generated
+- **Epoch binding**: Sub-node IDs are unique per epoch even with same parent/index
+
+**INV39: Sub-Node Identity (Updated v0.6.9)**
+Sub-node identity MUST be deterministically derived from parent, index, epoch, and verifiable randomness.
 
 ```
 ∀ subNode:
-  subNode.id = keccak256(parentAddress, subNodeIndex)
+  subNode.id = keccak256(parentAddress, subNodeIndex, epochId, epochRandomness) ∧
+  vrf_verify(validatorPublicKey, epochId, epochRandomness) = true
 ```
 
-### 4.2 Sub-Node Structure
+### 4.3 Sub-Node Structure
 
 ```typescript
 interface SubNode {
-  // Derived identity
+  // Derived identity (includes epoch randomness in v0.6.9)
   id: bytes32;
   index: number;           // 0-3
 
@@ -158,6 +214,9 @@ interface SubNode {
     address: Address;
     epochId: uint256;
   };
+
+  // Epoch randomness (v0.6.9)
+  epochRandomness: EpochRandomness;
 
   // Lifecycle
   activatedAt: uint256;
@@ -171,7 +230,7 @@ interface SubNode {
 }
 ```
 
-### 4.3 Sub-Node Limit (INV40)
+### 4.4 Sub-Node Limit (INV40)
 
 **INV40: Sub-Node Limit**
 A node MUST NOT have more than 4 sub-nodes.
@@ -342,12 +401,23 @@ interface OctopusSubNodePayload {
   subNodeId: bytes32;
   parentAddress: Address;
   index: uint256;                // 0-3
+  epochId: uint256;              // Epoch binding (v0.6.9)
+  epochRandomness: {             // VRF data (v0.6.9)
+    randomness: bytes32;
+    proof: bytes;
+    validator: Address;
+  };
   assignedRange: {
     start: uint256;
     end: uint256;
   };
 }
 ```
+
+**Validation Rules (v0.6.9):**
+- `subNodeId` MUST equal `keccak256(parentAddress, index, epochId, epochRandomness.randomness)`
+- `epochRandomness` MUST be verifiable via VRF
+- `epochId` MUST match current epoch
 
 ### 7.4 OCTOPUS_COORDINATE (0x63)
 
@@ -456,7 +526,7 @@ If a sub-node fails:
 | ID | Name | Rule |
 |----|------|------|
 | INV38 | Activation Threshold | Divide when throughput > 45% |
-| INV39 | Sub-Node Identity | ID = keccak256(parent, index) |
+| INV39 | Sub-Node Identity (v0.6.9) | ID = keccak256(parent, index, epochId, epochRandomness) + VRF verification |
 | INV40 | Sub-Node Limit | Max 4 sub-nodes per parent |
 | INV41 | State Consistency | Merged state reconcilable |
 | INV42 | Deactivation Hysteresis | Merge when < 20% sustained |
@@ -472,14 +542,22 @@ Sub-nodes share parent's on-chain identity:
 - All sub-nodes tied to parent's presence
 - Validators verify parent authorization
 
-### 10.2 State Integrity
+### 10.2 Pre-Computation Attack Prevention (v0.6.9)
+
+VRF-based identity derivation prevents pre-computation attacks:
+- Sub-node IDs cannot be predicted before epoch randomness is revealed
+- Epoch randomness is generated by validators using VRF
+- Attackers cannot prepare malicious sub-node configurations in advance
+- Each epoch generates unique sub-node identities even for same parent/index
+
+### 10.3 State Integrity
 
 State consistency verified:
 - State roots computed deterministically
 - Merge requires all sub-node states
 - Missing state prevents merge
 
-### 10.3 DoS Mitigation
+### 10.4 DoS Mitigation
 
 Division rate limited:
 - Minimum time between divisions
@@ -587,3 +665,4 @@ const OctopusConfig = {
 | Version | Changes |
 |---------|---------|
 | v0.6.7 | Initial Octopus Scaling specification |
+| v0.6.9 | **Security hardening**: VRF-based sub-node identity derivation (INV39 update), epoch binding, pre-computation attack prevention |

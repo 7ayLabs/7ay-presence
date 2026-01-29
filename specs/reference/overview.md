@@ -86,8 +86,8 @@ See [invariants.md](invariants.md) for complete definitions.
 
 | Target | Repository |
 |--------|------------|
-| Solidity (archived) | `archive/v0.6.7-solidity-reference` branch |
 | Substrate (active) | github.com/7ayLabs/7ay-chain |
+| Specifications | github.com/7ayLabs/7ay-pop-ref |
 
 ---
 

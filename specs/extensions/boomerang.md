@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Boomerang Routing
-**Version:** v0.6.5
+**Version:** v0.6.9
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** message-catalog.md v0.6.2, node-model.md v0.6.2, discovery.md v0.6.3
+**Depends on:** message-catalog.md v0.6.9, node-model.md v0.6.2, discovery.md v0.6.9
 
 ---
 
@@ -339,14 +339,110 @@ function verifyHopChain(hops: BoomerangHop[]) → bool:
 
 ## 7. Timeout Handling
 
-### 7.1 Timeout Window (INV31)
+### 7.1 Timeout Configuration (v0.6.9 — INV31 Update)
+
+Boomerang timeouts are configurable to accommodate varying network conditions:
+
+| Parameter | Default | Range | Purpose |
+|-----------|---------|-------|---------|
+| base_timeout_seconds | 60 | 30-300 | Default timeout value |
+| adaptive_timeout | false | bool | Adjust to network conditions |
+| max_timeout_extension | 60 | 0-120 | Maximum validator-approved extension |
+| network_latency_percentile | 95 | 50-99 | Percentile for adaptive calculation |
+
+```typescript
+interface TimeoutConfig {
+  base_timeout_seconds: uint256;    // Default: 60
+  adaptive_timeout: bool;           // Default: false
+  max_timeout_extension: uint256;   // Default: 60
+  network_latency_percentile: uint8; // Default: 95 (p95)
+}
+```
+
+### 7.2 Adaptive Timeout (v0.6.9)
+
+When `adaptive_timeout = true`, the effective timeout adjusts to network conditions:
+
+```typescript
+function calculateEffectiveTimeout(
+  config: TimeoutConfig,
+  networkMetrics: NetworkMetrics
+): uint256 {
+  if (!config.adaptive_timeout) {
+    return config.base_timeout_seconds;
+  }
+
+  // Calculate network latency at configured percentile
+  const latencyP95 = networkMetrics.latencyPercentile(
+    config.network_latency_percentile
+  );
+
+  // Effective timeout = base + network latency buffer
+  return config.base_timeout_seconds + (latencyP95 / 1000);
+}
+```
+
+### 7.3 Timeout Extension (v0.6.9)
+
+Validators may vote to extend timeout for in-flight boomerangs:
+
+```typescript
+interface TimeoutExtensionVote {
+  boomerangId: bytes32;
+  extensionSeconds: uint256;      // Must be <= max_timeout_extension
+  validator: Address;
+  signature: bytes;
+}
+
+function processTimeoutExtension(
+  boomerang: Boomerang,
+  votes: TimeoutExtensionVote[]
+): uint256 {
+  // Require 2+ validator votes
+  const validVotes = votes.filter(v =>
+    v.extensionSeconds <= config.max_timeout_extension &&
+    isValidatorActive(v.validator) &&
+    verifySignature(v)
+  );
+
+  if (validVotes.length < 2) {
+    return 0;  // No extension
+  }
+
+  // Extension is minimum of all votes (conservative)
+  const extension = Math.min(...validVotes.map(v => v.extensionSeconds));
+
+  // Only one extension per boomerang
+  if (boomerang.extensionApplied) {
+    return 0;
+  }
+
+  boomerang.extensionApplied = true;
+  return extension;
+}
+```
+
+Rules:
+- Requires 2+ validator votes
+- Extension MUST be <= `max_timeout_extension`
+- Only one extension per boomerang cycle
+- Extension amount is minimum of all votes (conservative approach)
+
+### 7.4 Timeout Window (INV31 — Updated)
 
 ```
 ∀ boomerang:
-  boomerang.completedAt - boomerang.sentAt ≤ boomerang.timeout
+  boomerang.completedAt - boomerang.sentAt ≤
+    effectiveTimeout + approvedExtension
+
+where:
+  effectiveTimeout = adaptive_timeout ?
+    base_timeout + network_latency_p95 :
+    base_timeout
+  approvedExtension = min(validator_voted_extensions) if votes >= 2 else 0
 ```
 
-### 7.2 Timeout Detection
+### 7.5 Timeout Detection
 
 Origin monitors for timeout:
 
@@ -355,14 +451,18 @@ function checkTimeout(boomerang: Boomerang) → bool:
   if boomerang.state ∈ {Complete, Timeout, Failed}:
     return false  // Already terminal
 
-  if block.timestamp > boomerang.sentAt + boomerang.timeout:
+  const effectiveTimeout = calculateEffectiveTimeout(config, networkMetrics);
+  const extension = boomerang.approvedExtension || 0;
+  const deadline = boomerang.sentAt + effectiveTimeout + extension;
+
+  if (block.timestamp > deadline:
     boomerang.state = Timeout
     return true
 
   return false
 ```
 
-### 7.3 Timeout Recovery
+### 7.6 Timeout Recovery
 
 On timeout:
 1. Boomerang marked as `Timeout`
@@ -386,13 +486,18 @@ Return path MUST differ from forward path by at least one intermediate node.
     (node ∉ forwardPath.intermediates ∧ node ∈ returnPath.intermediates)
 ```
 
-**INV31: Boomerang Timeout**
-Boomerang cycle MUST complete within timeout window.
+**INV31: Boomerang Timeout (Updated v0.6.9)**
+Boomerang cycle MUST complete within effective timeout window plus approved extension.
 
 ```
 ∀ boomerang:
   boomerang.state = Complete →
-    boomerang.completedAt - boomerang.sentAt ≤ boomerang.timeout
+    boomerang.completedAt - boomerang.sentAt ≤
+      effectiveTimeout + approvedExtension
+
+where:
+  effectiveTimeout = base_timeout + (adaptive ? network_latency_p95 : 0)
+  approvedExtension ≤ max_timeout_extension (if 2+ validators voted)
 ```
 
 **INV32: Boomerang Atomicity**
@@ -499,3 +604,4 @@ This specification explicitly does NOT define:
 | Version | Changes |
 |---------|---------|
 | v0.6.5 | Initial boomerang routing specification |
+| v0.6.9 | **Security hardening**: Configurable timeout (INV31 update), adaptive timeout, validator-approved extensions |

@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Errors
-**Version:** v0.6 (consolidated from v0.4-v0.6)
+**Version:** v0.6.9 (consolidated from v0.4-v0.6.9)
 **Status:** Active
 
-> Includes on-chain errors (v0.4-v0.5) and off-chain semantic layer errors (v0.6)
+> Includes on-chain errors (v0.4-v0.5) and off-chain semantic layer errors (v0.6-v0.6.9)
 
 ## Overview
 
@@ -21,13 +21,14 @@ On-chain errors from v0.5 and earlier remain unchanged.
 |----------|-------|-------|
 | On-chain (v0.4-0.5) | Smart contracts | Preserved |
 | Node Model | Off-chain | New in v0.6 |
-| Discovery | Off-chain | New in v0.6 |
-| Messaging | Off-chain | New in v0.6 |
+| Discovery | Off-chain | New in v0.6, Updated v0.6.9 |
+| Messaging | Off-chain | New in v0.6, Updated v0.6.9 |
 | State Sync | Off-chain | New in v0.6 |
 | Media | Off-chain | New in v0.6.4 |
 | Boomerang | Off-chain | New in v0.6.5 |
 | Autonomous | Off-chain | New in v0.6.6 |
-| Octopus | Off-chain | New in v0.6.7 |
+| Octopus | Off-chain | New in v0.6.7, Updated v0.6.9 |
+| Key Management | Off-chain | New in v0.6.9 |
 
 ---
 
@@ -134,6 +135,160 @@ enum ErrorCategory {
 }
 ```
 
+### OCTO_007: InvalidVRFProof (v0.6.9)
+```typescript
+{
+  code: "OCTO_007",
+  category: "OCTOPUS",
+  message: "VRF proof verification failed for epoch randomness",
+  context: {
+    epochId: 42,
+    validator: "0x1234...",
+    expectedRandomness: "0xabcd..."
+  }
+}
+```
+
+---
+
+## Message Errors (v0.6.9 Security)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| MSG_009 | ChainMismatch | Message chain_id doesn't match current chain | INV43 |
+| MSG_010 | BlockBoundExceeded | Current block exceeds message block_bound | INV43 |
+
+### MSG_009: ChainMismatch
+```typescript
+{
+  code: "MSG_009",
+  category: "MESSAGE",
+  message: "Message chain_id does not match current chain",
+  context: {
+    messageChainId: 1,
+    currentChainId: 137,
+    sender: "0x1234..."
+  }
+}
+```
+
+### MSG_010: BlockBoundExceeded
+```typescript
+{
+  code: "MSG_010",
+  category: "MESSAGE",
+  message: "Message has expired (current block exceeds block_bound)",
+  context: {
+    blockBound: 1000000,
+    currentBlock: 1000150,
+    sender: "0x1234..."
+  }
+}
+```
+
+---
+
+## Discovery Errors (v0.6.9 Security)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| DISC_010 | RateLimited | Query rate limit exceeded | INV45 |
+| DISC_011 | PresenceRequired | Sender lacks presence for query | INV45 |
+
+### DISC_010: RateLimited
+```typescript
+{
+  code: "DISC_010",
+  category: "DISCOVERY",
+  message: "Query rate limit exceeded",
+  context: {
+    sender: "0x1234...",
+    queriesThisMinute: 61,
+    maxQueriesPerMinute: 60
+  }
+}
+```
+
+### DISC_011: PresenceRequired
+```typescript
+{
+  code: "DISC_011",
+  category: "DISCOVERY",
+  message: "Sender must have valid presence to query discovery",
+  context: {
+    sender: "0x1234...",
+    epochId: 42,
+    presenceState: "None"
+  }
+}
+```
+
+---
+
+## Key Management Errors (v0.6.9)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| KEY_001 | InsufficientValidators | Not enough validators for key distribution | - |
+| KEY_002 | KeyShareAlreadyDestroyed | Validator already attested to destruction | INV44 |
+| KEY_003 | DestructionWindowExpired | Destruction window has passed | INV44 |
+| KEY_004 | InvalidDestructionAttestation | Invalid signature on destruction attestation | INV44 |
+
+### KEY_001: InsufficientValidators
+```typescript
+{
+  code: "KEY_001",
+  category: "KEY_MANAGEMENT",
+  message: "Insufficient validators for key distribution",
+  context: {
+    required: 5,
+    available: 3,
+    epochId: 42
+  }
+}
+```
+
+### KEY_002: KeyShareAlreadyDestroyed
+```typescript
+{
+  code: "KEY_002",
+  category: "KEY_MANAGEMENT",
+  message: "Validator already attested to key share destruction",
+  context: {
+    validator: "0x1234...",
+    epochId: 42,
+    previousAttestationAt: 1705000000
+  }
+}
+```
+
+### KEY_003: DestructionWindowExpired
+```typescript
+{
+  code: "KEY_003",
+  category: "KEY_MANAGEMENT",
+  message: "Key destruction window has expired",
+  context: {
+    epochId: 42,
+    windowEnd: 1705000300,
+    currentTime: 1705000400
+  }
+}
+```
+
+### KEY_004: InvalidDestructionAttestation
+```typescript
+{
+  code: "KEY_004",
+  category: "KEY_MANAGEMENT",
+  message: "Invalid signature on destruction attestation",
+  context: {
+    validator: "0x1234...",
+    epochId: 42
+  }
+}
+```
+
 ---
 
 ## Recovery Actions
@@ -141,13 +296,14 @@ enum ErrorCategory {
 | Error Category | Recovery |
 |----------------|----------|
 | NODE_* | Re-derive from on-chain |
-| DISC_* | Retry with different peer |
-| MSG_* | Reject message, log |
+| DISC_* | Retry with different peer; wait if rate limited |
+| MSG_* | Reject message, log; for MSG_009/010 reject immediately |
 | SYNC_* | Force complete sync |
 | MEDIA_* | Reject media, notify sender |
 | BOOM_* | Retry with new boomerangId |
 | AUTO_* | Revoke intent, re-declare if needed |
 | OCTO_* | Wait for threshold, retry division/merge |
+| KEY_* | Wait for epoch transition or contact validators |
 
 ---
 
@@ -160,3 +316,4 @@ enum ErrorCategory {
 | v0.6.5 | Added BOOM_001-005 for boomerang routing |
 | v0.6.6 | Added AUTO_001-006 for autonomous transactions |
 | v0.6.7 | Added OCTO_001-006 for octopus scaling |
+| v0.6.9 | **Security hardening**: Added MSG_009-010 (chain binding), DISC_010-011 (rate limiting), KEY_001-004 (key management), OCTO_007 (VRF verification) |

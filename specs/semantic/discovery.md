@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Node Discovery
-**Version:** v0.6.3
+**Version:** v0.6.9
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** node-model.md v0.6.2, message-catalog.md v0.6.2, state-sync.md v0.6.1
+**Depends on:** node-model.md v0.6.2, message-catalog.md v0.6.9, state-sync.md v0.6.1
 
 ---
 
@@ -295,13 +295,15 @@ function leaveEpoch(epochId: uint256, reason: LeaveReason):
 
 ### 7.1 Discovery Errors
 
-| Code | Name | Description |
-|------|------|-------------|
-| DISC_001 | PeerNotFound | Requested peer not in list |
-| DISC_002 | EpochMismatch | Node from different epoch |
-| DISC_003 | VerificationFailed | On-chain verification failed |
-| DISC_004 | PeerListFull | Maximum peers reached |
-| DISC_005 | StaleAnnouncement | Announcement TTL expired |
+| Code | Name | Description | Invariant |
+|------|------|-------------|-----------|
+| DISC_001 | PeerNotFound | Requested peer not in list | - |
+| DISC_002 | EpochMismatch | Node from different epoch | INV21 |
+| DISC_003 | VerificationFailed | On-chain verification failed | INV22 |
+| DISC_004 | PeerListFull | Maximum peers reached | - |
+| DISC_005 | StaleAnnouncement | Announcement TTL expired | - |
+| DISC_010 | RateLimited | Query rate limit exceeded | INV45 (v0.6.9) |
+| DISC_011 | PresenceRequired | Sender lacks presence for query | INV45 (v0.6.9) |
 
 ### 7.2 Error Recovery
 
@@ -331,6 +333,16 @@ function handleDiscoveryError(error: DiscoveryError):
       // Stale announcement - remove entry
       peerList.remove(error.node.address, error.node.epochId)
       return
+
+    case DISC_010:
+      // Rate limited - wait and retry (v0.6.9)
+      wait(query_cooldown_ms)
+      retry()
+
+    case DISC_011:
+      // Presence required - declare presence first (v0.6.9)
+      log.error("Must have presence to query discovery")
+      return
 ```
 
 ---
@@ -355,10 +367,94 @@ Mitigations:
 ### 8.3 Denial of Service
 
 Mitigations:
-- Rate limiting on announcements and queries
+- Rate limiting on announcements and queries (see Section 8.5)
 - Maximum peer list size per epoch
 - TTL enforcement
 - Query result pagination (max 100)
+
+### 8.5 Rate Limiting (v0.6.9 — INV45)
+
+Discovery queries are rate limited to prevent network enumeration and DoS attacks.
+
+#### 8.5.1 Configuration
+
+| Parameter | Default | Range | Purpose |
+|-----------|---------|-------|---------|
+| max_queries_per_minute | 60 | 10-300 | Prevent enumeration attacks |
+| max_response_nodes | 50 | 10-200 | Limit response size |
+| require_presence_for_query | true | bool | Sybil resistance |
+| query_cooldown_ms | 1000 | 100-5000 | Minimum time between queries |
+
+#### 8.5.2 Query Validation
+
+```typescript
+interface RateLimitState {
+  queryCount: Map<Address, number>;  // queries in current minute
+  lastQueryTime: Map<Address, uint256>;
+  windowStart: uint256;
+}
+
+function validateQuery(
+  sender: Address,
+  epochId: uint256,
+  state: RateLimitState
+): Result<void, DiscoveryError> {
+  // 1. Check rate limit (INV45)
+  const currentMinute = block.timestamp / 60;
+  if (currentMinute != state.windowStart) {
+    state.queryCount.clear();
+    state.windowStart = currentMinute;
+  }
+
+  const count = state.queryCount.get(sender) || 0;
+  if (count >= config.max_queries_per_minute) {
+    return Err(DISC_010_RateLimited);
+  }
+
+  // 2. Check cooldown
+  const lastQuery = state.lastQueryTime.get(sender) || 0;
+  if (block.timestamp - lastQuery < config.query_cooldown_ms / 1000) {
+    return Err(DISC_010_RateLimited);
+  }
+
+  // 3. Check presence requirement (Sybil resistance)
+  if (config.require_presence_for_query) {
+    const presence = presenceRegistry.presenceState(sender, epochId);
+    if (presence == PresenceState.None) {
+      return Err(DISC_011_PresenceRequired);
+    }
+  }
+
+  // Update state
+  state.queryCount.set(sender, count + 1);
+  state.lastQueryTime.set(sender, block.timestamp);
+
+  return Ok();
+}
+```
+
+#### 8.5.3 Invariant (INV45)
+
+**INV45: Discovery Rate Limit**
+Query frequency MUST NOT exceed the configured rate limit.
+
+```
+∀ sender, minute:
+  count(queries(sender, minute)) <= max_queries_per_minute
+```
+
+#### 8.5.4 Paginated Responses
+
+Responses are paginated to limit resource usage:
+
+```typescript
+interface PaginatedQueryResponse {
+  nodes: MinimalNode[];           // max: max_response_nodes
+  total: uint256;                 // total available matches
+  hasMore: bool;
+  nextOffset: uint256;            // for pagination
+}
+```
 
 ### 8.4 Information Leakage
 
@@ -379,12 +475,21 @@ Discovery MUST NOT return nodes from different epochs.
 **INV22: Presence-Gated Discovery** (Section 5.1)
 Only nodes with valid presence are discoverable.
 
+**INV45: Discovery Rate Limit** (v0.6.9 — Section 8.5)
+Query frequency MUST NOT exceed the configured rate limit.
+
+```
+∀ sender, minute:
+  count(queries(sender, minute)) <= max_queries_per_minute
+```
+
 ### 9.2 Related Invariants
 
-See `invariants.md v0.6.1` for:
+See `invariants.md v0.6.9` for:
 - INV19: Node Identity Derivability
 - INV20: Epoch Binding
 - INV23-25: Message invariants
+- INV43: Chain Binding
 
 ---
 
@@ -467,3 +572,4 @@ This specification explicitly does NOT define:
 | Version | Changes |
 |---------|---------|
 | v0.6.3 | Initial discovery specification |
+| v0.6.9 | **Security hardening**: Rate limiting (INV45), presence requirement for queries, pagination |

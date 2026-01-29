@@ -121,8 +121,9 @@ Cross-cutting documentation and implementation guides.
 
 | Tag | Description |
 |-----|-------------|
-| `v0.6.7-solidity-final` | Last Solidity implementation |
+| `v0.6.7` | Legacy reference (archived) |
 | `v0.6.8-specs` | Specs-only repository |
+| `v0.6.9` | Security hardening release |
 
 History preserved in git. Use `git log --follow <file>` for file history.
 
