@@ -12,3 +12,7 @@ docs/
 
 # Dotenv file
 .env
+
+CLAUDE.md
+session_summary_*.md
+pr-templates-*.md
