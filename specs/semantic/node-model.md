@@ -277,12 +277,12 @@ Validators can:
 
 Role is derived at query time, not stored:
 
-```solidity
-function deriveRole(address node) external view returns (NodeRole) {
-    if (validatorRegistry.isValidatorActive(node)) {
-        return NodeRole.Validator;
+```rust
+pub fn derive_role(&self, node: AccountId) -> NodeRole {
+    if self.validator_registry.is_validator_active(node) {
+        return NodeRole::Validator;
     }
-    return NodeRole.Participant;
+    NodeRole::Participant
 }
 ```
 

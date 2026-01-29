@@ -1,18 +1,18 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Presence
-**Version:** v0.4
-**Status:** Draft
+**Version:** v0.6 (consolidated from v0.1, v0.3, v0.4)
+**Status:** Active
 **Scope:** Protocol-level (canonical)
-**Depends on:** epoch.md v0.2, validator.md v0.4
+**Depends on:** epochs.md, validators.md
 
 ---
 
 ## 1. Purpose
 
 This specification defines the canonical rules for presence declaration,
-validation, and finalization in the Proof of Presence protocol v0.4.
+validation, and finalization in the Proof of Presence protocol.
 
-This version introduces:
+This specification includes:
 - Validator-based presence validation
 - Dispute mechanism for challenging presence claims
 - Slashing for protocol violations
@@ -23,13 +23,13 @@ Implementations MUST follow this specification to be considered compliant.
 
 ## 2. States
 
-```solidity
-enum PresenceState {
+```rust
+pub enum PresenceState {
     None,       // 0 - No presence exists
     Declared,   // 1 - Actor declared presence
     Validated,  // 2 - Quorum validated presence
     Finalized,  // 3 - Permanently recorded (terminal)
-    Slashed     // 4 - Invalidated due to dispute (terminal)
+    Slashed,    // 4 - Invalidated due to dispute (terminal)
 }
 ```
 
@@ -105,31 +105,37 @@ None ──declarePresence()──► Declared ──validatePresence()──►
 
 ### 4.1 Read Operations
 
-```solidity
-function protocolVersion() external pure returns (string memory);
-function epochRegistry() external view returns (IEpochRegistry);
-function validatorRegistry() external view returns (IValidatorRegistry);
-function presenceState(address actor, uint256 epochId) external view returns (PresenceState);
-function getPresence(address actor, uint256 epochId) external view returns (Presence memory);
-function getDispute(address actor, uint256 epochId) external view returns (Dispute memory);
-function disputeWindow() external view returns (uint256);
-function hasValidatorVoted(address validator, address actor, uint256 epochId) external view returns (bool);
+```rust
+pub trait PresenceRegistry {
+    fn protocol_version(&self) -> &str;
+    fn epoch_registry(&self) -> &EpochRegistry;
+    fn validator_registry(&self) -> &ValidatorRegistry;
+    fn presence_state(&self, actor: AccountId, epoch_id: u128) -> PresenceState;
+    fn get_presence(&self, actor: AccountId, epoch_id: u128) -> Option<Presence>;
+    fn get_dispute(&self, actor: AccountId, epoch_id: u128) -> Option<Dispute>;
+    fn dispute_window(&self) -> u64;
+    fn has_validator_voted(&self, validator: AccountId, actor: AccountId, epoch_id: u128) -> bool;
+}
 ```
 
 ### 4.2 Presence Lifecycle
 
-```solidity
-function declarePresence(address actor, uint256 epochId) external;
-function validatePresence(address actor, uint256 epochId) external;
-function finalizePresence(address actor, uint256 epochId) external;
+```rust
+impl PresenceRegistry {
+    pub fn declare_presence(&mut self, actor: AccountId, epoch_id: u128) -> Result<(), Error>;
+    pub fn validate_presence(&mut self, actor: AccountId, epoch_id: u128) -> Result<(), Error>;
+    pub fn finalize_presence(&mut self, actor: AccountId, epoch_id: u128) -> Result<(), Error>;
+}
 ```
 
 ### 4.3 Dispute Mechanism
 
-```solidity
-function initiateDispute(address actor, uint256 epochId, bytes32 evidenceHash) external;
-function voteOnDispute(address actor, uint256 epochId, bool upholdDispute) external;
-function resolveDispute(address actor, uint256 epochId) external;
+```rust
+impl PresenceRegistry {
+    pub fn initiate_dispute(&mut self, actor: AccountId, epoch_id: u128, evidence_hash: [u8; 32]) -> Result<(), Error>;
+    pub fn vote_on_dispute(&mut self, actor: AccountId, epoch_id: u128, uphold_dispute: bool) -> Result<(), Error>;
+    pub fn resolve_dispute(&mut self, actor: AccountId, epoch_id: u128) -> Result<(), Error>;
+}
 ```
 
 ---
@@ -168,12 +174,12 @@ A presence MAY be validated if and only if:
 
 ### 6.1 Dispute States
 
-```solidity
-enum DisputeStatus {
+```rust
+pub enum DisputeStatus {
     None,       // 0 - No dispute exists
     Pending,    // 1 - Dispute initiated, awaiting votes
     Upheld,     // 2 - Dispute successful, presence slashed
-    Rejected    // 3 - Dispute failed, presence remains valid
+    Rejected,   // 3 - Dispute failed, presence remains valid
 }
 ```
 
@@ -251,47 +257,47 @@ Finalization is permitted when:
 
 ### 9.1 Presence Events
 
-```solidity
-event PresenceDeclared(address indexed actor, uint256 indexed epochId);
-event PresenceValidated(address indexed actor, uint256 indexed epochId, uint256 validatorCount);
-event PresenceFinalized(address indexed actor, uint256 indexed epochId);
-event PresenceSlashed(address indexed actor, uint256 indexed epochId, address indexed challenger);
+```rust
+pub struct PresenceDeclared { pub actor: AccountId, pub epoch_id: u128 }
+pub struct PresenceValidated { pub actor: AccountId, pub epoch_id: u128, pub validator_count: u32 }
+pub struct PresenceFinalized { pub actor: AccountId, pub epoch_id: u128 }
+pub struct PresenceSlashed { pub actor: AccountId, pub epoch_id: u128, pub challenger: AccountId }
 ```
 
 ### 9.2 Validation Events
 
-```solidity
-event PresenceValidationVote(
-    address indexed actor,
-    uint256 indexed epochId,
-    address indexed validator,
-    uint256 currentVotes,
-    uint256 requiredVotes
-);
+```rust
+pub struct PresenceValidationVote {
+    pub actor: AccountId,
+    pub epoch_id: u128,
+    pub validator: AccountId,
+    pub current_votes: u32,
+    pub required_votes: u32,
+}
 ```
 
 ### 9.3 Dispute Events
 
-```solidity
-event DisputeInitiated(
-    address indexed actor,
-    uint256 indexed epochId,
-    address indexed challenger,
-    bytes32 evidenceHash
-);
+```rust
+pub struct DisputeInitiated {
+    pub actor: AccountId,
+    pub epoch_id: u128,
+    pub challenger: AccountId,
+    pub evidence_hash: [u8; 32],
+}
 
-event DisputeVote(
-    address indexed actor,
-    uint256 indexed epochId,
-    address indexed validator,
-    bool voteToUphold
-);
+pub struct DisputeVote {
+    pub actor: AccountId,
+    pub epoch_id: u128,
+    pub validator: AccountId,
+    pub vote_to_uphold: bool,
+}
 
-event DisputeResolved(
-    address indexed actor,
-    uint256 indexed epochId,
-    DisputeStatus outcome
-);
+pub struct DisputeResolved {
+    pub actor: AccountId,
+    pub epoch_id: u128,
+    pub outcome: DisputeStatus,
+}
 ```
 
 ---
@@ -352,25 +358,29 @@ event DisputeResolved(
 
 ## 12. Storage
 
-```solidity
-// Dependencies
-IEpochRegistry public immutable epochRegistry;
-IValidatorRegistry public immutable validatorRegistry;
+```rust
+pub struct Storage {
+    // Dependencies
+    pub epoch_registry: EpochRegistry,
+    pub validator_registry: ValidatorRegistry,
 
-// Configuration
-uint256 public disputeWindow;  // seconds
+    // Configuration
+    pub dispute_window: u64,  // seconds
 
-// Presence state
-mapping(address => mapping(uint256 => PresenceState)) private _presenceState;
-mapping(address => mapping(uint256 => Presence)) private _presenceData;
+    // Presence state: (actor, epoch_id) -> state
+    presence_state: BTreeMap<(AccountId, u128), PresenceState>,
+    presence_data: BTreeMap<(AccountId, u128), Presence>,
 
-// Validation tracking
-mapping(address => mapping(uint256 => uint256)) private _validationVotes;
-mapping(address => mapping(uint256 => mapping(address => bool))) private _hasVoted;
+    // Validation tracking: (actor, epoch_id) -> vote count
+    validation_votes: BTreeMap<(AccountId, u128), u32>,
+    // (actor, epoch_id, validator) -> has_voted
+    has_voted: BTreeMap<(AccountId, u128, AccountId), bool>,
 
-// Dispute tracking
-mapping(address => mapping(uint256 => Dispute)) private _disputes;
-mapping(address => mapping(uint256 => mapping(address => bool))) private _hasVotedOnDispute;
+    // Dispute tracking: (actor, epoch_id) -> dispute
+    disputes: BTreeMap<(AccountId, u128), Dispute>,
+    // (actor, epoch_id, validator) -> has_voted_on_dispute
+    has_voted_on_dispute: BTreeMap<(AccountId, u128, AccountId), bool>,
+}
 ```
 
 ---

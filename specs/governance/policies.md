@@ -34,8 +34,8 @@ Properties:
 
 Only a hash is stored on-chain:
 
-```solidity
-bytes32 dataPolicyHash = keccak256(policyDocument);
+```rust
+let data_policy_hash: [u8; 32] = keccak256(policy_document);
 ```
 
 Semantics:

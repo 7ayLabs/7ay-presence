@@ -19,12 +19,12 @@ voting to uphold or reject the challenge.
 
 ## 2. Dispute States
 
-```solidity
-enum DisputeStatus {
+```rust
+pub enum DisputeStatus {
     None,       // 0 - No dispute exists
     Pending,    // 1 - Dispute initiated, awaiting votes
     Upheld,     // 2 - Dispute successful, presence slashed
-    Rejected    // 3 - Dispute failed, presence remains valid
+    Rejected,   // 3 - Dispute failed, presence remains valid
 }
 ```
 
@@ -56,12 +56,13 @@ Default `disputeWindow`: 86400 seconds (1 day)
 
 ### 5.1 Initiate Dispute
 
-```solidity
-function initiateDispute(
-    address actor,
-    uint256 epochId,
-    bytes32 evidenceHash
-) external;
+```rust
+pub fn initiate_dispute(
+    &mut self,
+    actor: AccountId,
+    epoch_id: u128,
+    evidence_hash: [u8; 32],
+) -> Result<(), Error>;
 ```
 
 A dispute MAY be initiated if and only if:
@@ -72,12 +73,13 @@ A dispute MAY be initiated if and only if:
 
 ### 5.2 Vote on Dispute
 
-```solidity
-function voteOnDispute(
-    address actor,
-    uint256 epochId,
-    bool upholdDispute
-) external;
+```rust
+pub fn vote_on_dispute(
+    &mut self,
+    actor: AccountId,
+    epoch_id: u128,
+    uphold_dispute: bool,
+) -> Result<(), Error>;
 ```
 
 A dispute vote MAY be cast if and only if:
@@ -87,8 +89,8 @@ A dispute vote MAY be cast if and only if:
 
 ### 5.3 Resolve Dispute
 
-```solidity
-function resolveDispute(address actor, uint256 epochId) external;
+```rust
+pub fn resolve_dispute(&mut self, actor: AccountId, epoch_id: u128) -> Result<(), Error>;
 ```
 
 Resolves when validator quorum is reached.
@@ -97,26 +99,26 @@ Resolves when validator quorum is reached.
 
 ## 6. Events
 
-```solidity
-event DisputeInitiated(
-    address indexed actor,
-    uint256 indexed epochId,
-    address indexed challenger,
-    bytes32 evidenceHash
-);
+```rust
+pub struct DisputeInitiated {
+    pub actor: AccountId,
+    pub epoch_id: u128,
+    pub challenger: AccountId,
+    pub evidence_hash: [u8; 32],
+}
 
-event DisputeVote(
-    address indexed actor,
-    uint256 indexed epochId,
-    address indexed validator,
-    bool voteToUphold
-);
+pub struct DisputeVote {
+    pub actor: AccountId,
+    pub epoch_id: u128,
+    pub validator: AccountId,
+    pub vote_to_uphold: bool,
+}
 
-event DisputeResolved(
-    address indexed actor,
-    uint256 indexed epochId,
-    DisputeStatus outcome
-);
+pub struct DisputeResolved {
+    pub actor: AccountId,
+    pub epoch_id: u128,
+    pub outcome: DisputeStatus,
+}
 ```
 
 ---

@@ -190,11 +190,11 @@ function reconcile(local: State, remote: State, epochId: uint256) → State:
 
 When conflicts exist, nodes query on-chain state:
 
-```solidity
+```rust
 // Canonical state query
-PresenceState state = presenceRegistry.presenceState(actor, epochId);
-Presence memory presence = presenceRegistry.getPresence(actor, epochId);
-Dispute memory dispute = presenceRegistry.getDispute(actor, epochId);
+let state: PresenceState = presence_registry.presence_state(actor, epoch_id);
+let presence: Presence = presence_registry.get_presence(actor, epoch_id);
+let dispute: Dispute = presence_registry.get_dispute(actor, epoch_id);
 ```
 
 ### 4.5 Determinism Guarantee

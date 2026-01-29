@@ -408,41 +408,51 @@ On epoch close:
 
 ### 8.1 Intent Commitment
 
-```solidity
+```rust
 // In PresenceRegistry (optional extension)
-mapping(address => mapping(uint256 => bytes32)) private _autonomousIntentHashes;
-
-/// @notice Commit autonomous intent hash
-/// @param epochId Target epoch
-/// @param intentHash Hash of intent details
-function commitAutonomousIntent(uint256 epochId, bytes32 intentHash) external {
-    require(
-        presenceState(msg.sender, epochId) == PresenceState.Validated ||
-        presenceState(msg.sender, epochId) == PresenceState.Finalized,
-        "Insufficient presence"
-    );
-    require(epochState(epochId) == EpochState.Active, "Epoch not active");
-
-    _autonomousIntentHashes[msg.sender][epochId] = intentHash;
-    emit AutonomousIntentCommitted(msg.sender, epochId, intentHash);
+pub struct AutonomousStorage {
+    autonomous_intent_hashes: BTreeMap<(AccountId, u128), [u8; 32]>,
 }
 
-/// @notice Get autonomous intent hash
-function autonomousIntentHash(address actor, uint256 epochId)
-    external view returns (bytes32)
-{
-    return _autonomousIntentHashes[actor][epochId];
+impl PresenceRegistry {
+    /// Commit autonomous intent hash
+    pub fn commit_autonomous_intent(
+        &mut self,
+        caller: AccountId,
+        epoch_id: u128,
+        intent_hash: [u8; 32],
+    ) -> Result<(), Error> {
+        let state = self.presence_state(caller, epoch_id);
+        if state != PresenceState::Validated && state != PresenceState::Finalized {
+            return Err(Error::InsufficientPresence);
+        }
+        if self.epoch_state(epoch_id) != EpochState::Active {
+            return Err(Error::EpochNotActive { epoch_id });
+        }
+
+        self.autonomous_intent_hashes.insert((caller, epoch_id), intent_hash);
+        // Emit AutonomousIntentCommitted { actor: caller, epoch_id, intent_hash }
+        Ok(())
+    }
+
+    /// Get autonomous intent hash
+    pub fn autonomous_intent_hash(&self, actor: AccountId, epoch_id: u128) -> [u8; 32] {
+        self.autonomous_intent_hashes
+            .get(&(actor, epoch_id))
+            .copied()
+            .unwrap_or([0u8; 32])
+    }
 }
 ```
 
 ### 8.2 Event
 
-```solidity
-event AutonomousIntentCommitted(
-    address indexed actor,
-    uint256 indexed epochId,
-    bytes32 intentHash
-);
+```rust
+pub struct AutonomousIntentCommitted {
+    pub actor: AccountId,
+    pub epoch_id: u128,
+    pub intent_hash: [u8; 32],
+}
 ```
 
 ---

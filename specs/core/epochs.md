@@ -259,20 +259,20 @@ The protocol MUST emit canonical events for epoch lifecycle transitions:
 
 Emitted when a new epoch is registered.
 
-```solidity
-event EpochCreated(
-    uint256 indexed epochId,
-    uint256 startTime,
-    uint256 endTime
-);
+```rust
+pub struct EpochCreated {
+    pub epoch_id: u128,
+    pub start_time: u64,
+    pub end_time: u64,
+}
 ```
 
 ### 6.2 EpochActivated
 
 Emitted when an epoch transitions to Active state.
 
-```solidity
-event EpochActivated(uint256 indexed epochId);
+```rust
+pub struct EpochActivated { pub epoch_id: u128 }
 ```
 
 Note: This event MAY be emitted lazily on first interaction after `startTime`.
@@ -281,8 +281,8 @@ Note: This event MAY be emitted lazily on first interaction after `startTime`.
 
 Emitted when an epoch transitions to Closed state.
 
-```solidity
-event EpochClosed(uint256 indexed epochId);
+```rust
+pub struct EpochClosed { pub epoch_id: u128 }
 ```
 
 Note: This event MAY be emitted lazily on first interaction after `endTime`.
@@ -291,8 +291,8 @@ Note: This event MAY be emitted lazily on first interaction after `endTime`.
 
 Emitted when an epoch is permanently sealed.
 
-```solidity
-event EpochFinalized(uint256 indexed epochId);
+```rust
+pub struct EpochFinalized { pub epoch_id: u128 }
 ```
 
 ---
@@ -303,72 +303,72 @@ event EpochFinalized(uint256 indexed epochId);
 
 Raised when attempting to create an epoch that already exists.
 
-```solidity
-error EpochAlreadyExists(uint256 epochId);
+```rust
+EpochAlreadyExists { epoch_id: u128 }
 ```
 
 ### 7.2 EpochNotFound
 
 Raised when referencing an epoch that does not exist.
 
-```solidity
-error EpochNotFound(uint256 epochId);
+```rust
+EpochNotFound { epoch_id: u128 }
 ```
 
 ### 7.3 EpochNotActive
 
 Raised when attempting presence finalization outside the active window.
 
-```solidity
-error EpochNotActive(uint256 epochId);
+```rust
+EpochNotActive { epoch_id: u128 }
 ```
 
 ### 7.4 EpochAlreadyFinalized
 
 Raised when attempting to modify a finalized epoch.
 
-```solidity
-error EpochAlreadyFinalized(uint256 epochId);
+```rust
+EpochAlreadyFinalized { epoch_id: u128 }
 ```
 
 ### 7.5 InvalidEpochBounds
 
 Raised when epoch bounds are invalid.
 
-```solidity
-error InvalidEpochBounds(uint256 startTime, uint256 endTime);
+```rust
+InvalidEpochBounds { start_time: u64, end_time: u64 }
 ```
 
 ### 7.6 UnauthorizedEpochAuthority
 
 Raised when caller is not the epoch authority.
 
-```solidity
-error UnauthorizedEpochAuthority(address caller, address authority);
+```rust
+UnauthorizedEpochAuthority { caller: AccountId, authority: AccountId }
 ```
 
 ### 7.7 InvalidEpochId
 
 Raised when epoch identifier is zero (reserved value).
 
-```solidity
-error InvalidEpochId();
+```rust
+InvalidEpochId
 ```
 
 ### 7.8 EpochNotClosed
 
 Raised when attempting to finalize an epoch that is not in Closed state.
 
-```solidity
-error EpochNotClosed(uint256 epochId, EpochState currentState);
+```rust
+EpochNotClosed { epoch_id: u128, current_state: EpochState }
 ```
 
 ### 7.9 InvalidEpochAuthority
 
 Raised when epoch authority address is invalid (zero address).
 
-```solidity
-error InvalidEpochAuthority();
+```rust
+InvalidEpochAuthority
 ```
 
 ---

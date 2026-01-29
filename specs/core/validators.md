@@ -158,11 +158,11 @@ A validator MAY be removed if and only if:
 
 ### 5.1 Quorum Calculation
 
-```solidity
-function quorumSize() returns (uint256) {
-    uint256 count = activeValidatorCount;
-    if (count == 0) return 1;
-    return (count * quorumThreshold + 99) / 100; // ceil division
+```rust
+pub fn quorum_size(&self) -> u32 {
+    let count = self.active_validator_count;
+    if count == 0 { return 1; }
+    (count * self.quorum_threshold + 99) / 100  // ceil division
 }
 ```
 
@@ -188,23 +188,27 @@ function quorumSize() returns (uint256) {
 
 ### 6.1 Read Operations
 
-```solidity
-function validatorAuthority() external view returns (address);
-function quorumThreshold() external view returns (uint256);
-function minimumValidators() external view returns (uint256);
-function validatorStatus(address validator) external view returns (ValidatorStatus);
-function isValidatorActive(address validator) external view returns (bool);
-function activeValidatorCount() external view returns (uint256);
-function getActiveValidators() external view returns (address[] memory);
-function quorumSize() external view returns (uint256);
+```rust
+pub trait ValidatorRegistry {
+    fn validator_authority(&self) -> AccountId;
+    fn quorum_threshold(&self) -> u8;
+    fn minimum_validators(&self) -> u32;
+    fn validator_status(&self, validator: AccountId) -> ValidatorStatus;
+    fn is_validator_active(&self, validator: AccountId) -> bool;
+    fn active_validator_count(&self) -> u32;
+    fn get_active_validators(&self) -> Vec<AccountId>;
+    fn quorum_size(&self) -> u32;
+}
 ```
 
 ### 6.2 Write Operations
 
-```solidity
-function addValidator(address validator) external;
-function removeValidator(address validator) external;
-function setQuorumThreshold(uint256 threshold) external;
+```rust
+impl ValidatorRegistry {
+    pub fn add_validator(&mut self, validator: AccountId) -> Result<(), Error>;
+    pub fn remove_validator(&mut self, validator: AccountId) -> Result<(), Error>;
+    pub fn set_quorum_threshold(&mut self, threshold: u8) -> Result<(), Error>;
+}
 ```
 
 ---
@@ -215,24 +219,24 @@ function setQuorumThreshold(uint256 threshold) external;
 
 Emitted when a validator is registered.
 
-```solidity
-event ValidatorAdded(address indexed validator, uint256 timestamp);
+```rust
+pub struct ValidatorAdded { pub validator: AccountId, pub timestamp: u64 }
 ```
 
 ### 7.2 ValidatorRemoved
 
 Emitted when a validator is removed.
 
-```solidity
-event ValidatorRemoved(address indexed validator, uint256 timestamp);
+```rust
+pub struct ValidatorRemoved { pub validator: AccountId, pub timestamp: u64 }
 ```
 
 ### 7.3 QuorumThresholdUpdated
 
 Emitted when quorum threshold changes.
 
-```solidity
-event QuorumThresholdUpdated(uint256 oldThreshold, uint256 newThreshold);
+```rust
+pub struct QuorumThresholdUpdated { pub old_threshold: u8, pub new_threshold: u8 }
 ```
 
 ---
@@ -243,64 +247,64 @@ event QuorumThresholdUpdated(uint256 oldThreshold, uint256 newThreshold);
 
 Raised when validator address is zero.
 
-```solidity
-error InvalidValidator();
+```rust
+InvalidValidator
 ```
 
 ### 8.2 UnauthorizedValidatorAuthority
 
 Raised when caller is not the validator authority.
 
-```solidity
-error UnauthorizedValidatorAuthority(address caller, address authority);
+```rust
+UnauthorizedValidatorAuthority { caller: AccountId, authority: AccountId }
 ```
 
 ### 8.3 ValidatorAlreadyExists
 
 Raised when adding an already existing validator.
 
-```solidity
-error ValidatorAlreadyExists(address validator);
+```rust
+ValidatorAlreadyExists { validator: AccountId }
 ```
 
 ### 8.4 ValidatorNotFound
 
 Raised when referencing a non-existent validator.
 
-```solidity
-error ValidatorNotFound(address validator);
+```rust
+ValidatorNotFound { validator: AccountId }
 ```
 
 ### 8.5 ValidatorNotActive
 
 Raised when operating on an inactive validator.
 
-```solidity
-error ValidatorNotActive(address validator);
+```rust
+ValidatorNotActive { validator: AccountId }
 ```
 
 ### 8.6 InsufficientValidators
 
 Raised when removal would drop below minimum.
 
-```solidity
-error InsufficientValidators(uint256 current, uint256 required);
+```rust
+InsufficientValidators { current: u32, required: u32 }
 ```
 
 ### 8.7 InvalidValidatorAuthority
 
 Raised when authority address is zero.
 
-```solidity
-error InvalidValidatorAuthority();
+```rust
+InvalidValidatorAuthority
 ```
 
 ### 8.8 InvalidQuorumThreshold
 
 Raised when threshold is out of range.
 
-```solidity
-error InvalidQuorumThreshold(uint256 threshold);
+```rust
+InvalidQuorumThreshold { threshold: u8 }
 ```
 
 ---
@@ -327,14 +331,16 @@ The following invariants MUST NEVER be violated:
 
 ## 10. Storage
 
-```solidity
-address public immutable validatorAuthority;
-uint256 public quorumThreshold;          // 1-100
-uint256 public constant minimumValidators = 3;
+```rust
+pub struct Storage {
+    pub validator_authority: AccountId,
+    pub quorum_threshold: u8,            // 1-100
+    pub const MINIMUM_VALIDATORS: u32 = 3;
 
-mapping(address => Validator) private _validators;
-address[] private _validatorList;
-uint256 private _activeValidatorCount;
+    validators: BTreeMap<AccountId, Validator>,
+    validator_list: Vec<AccountId>,
+    active_validator_count: u32,
+}
 ```
 
 ---

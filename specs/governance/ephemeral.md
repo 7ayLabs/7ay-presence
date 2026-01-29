@@ -58,8 +58,8 @@ Data that does not meet all criteria MUST NOT be considered Ephemeral Data.
 An **Epoch Capability** declares what features an epoch supports beyond
 basic presence tracking.
 
-```solidity
-enum EpochCapability {
+```rust
+pub enum EpochCapability {
     PresenceOnly,             // 0 - Default, v0.4 compatible
     PresenceWithSignals,      // 1 - Presence + signal emission
     PresenceWithEphemeralData // 2 - Full ephemeral data support
@@ -77,8 +77,8 @@ An **Epoch Data Policy** defines governance rules for ephemeral data
 within an epoch.
 
 On-chain representation:
-```solidity
-bytes32 dataPolicyHash;  // keccak256 of full policy
+```rust
+data_policy_hash: [u8; 32]  // keccak256 of full policy
 ```
 
 Constraints:
@@ -148,8 +148,8 @@ The Ephemeral Data Governance Layer is governed by:
 ### 5.1 On-Chain Representation
 
 Only a hash is stored on-chain:
-```solidity
-bytes32 dataPolicyHash;  // keccak256 of full policy JSON
+```rust
+data_policy_hash: [u8; 32]  // keccak256 of full policy JSON
 ```
 
 ### 5.2 Off-Chain Policy Structure
@@ -222,14 +222,15 @@ The following are INSUFFICIENT:
 
 ### 8.1 Epoch Creation (v0.5)
 
-```solidity
-function createEpochWithCapability(
-    uint256 epochId,
-    uint256 startTime,
-    uint256 endTime,
-    EpochCapability capability,
-    bytes32 dataPolicyHash
-) external;
+```rust
+pub fn create_epoch_with_capability(
+    &mut self,
+    epoch_id: u128,
+    start_time: u64,
+    end_time: u64,
+    capability: EpochCapability,
+    data_policy_hash: [u8; 32],
+) -> Result<(), Error>;
 ```
 
 Rules:
@@ -243,10 +244,10 @@ Rules:
 
 ### 8.2 Read Operations (v0.5)
 
-```solidity
-function epochCapability(uint256 epochId) external view returns (EpochCapability);
-function epochDataPolicyHash(uint256 epochId) external view returns (bytes32);
-function supportsEphemeralData(uint256 epochId) external view returns (bool);
+```rust
+pub fn epoch_capability(&self, epoch_id: u128) -> EpochCapability;
+pub fn epoch_data_policy_hash(&self, epoch_id: u128) -> [u8; 32];
+pub fn supports_ephemeral_data(&self, epoch_id: u128) -> bool;
 ```
 
 Rules:
@@ -262,22 +263,26 @@ Rules:
 
 Emitted when an epoch is created (v0.5).
 
-```solidity
-event EpochCreatedV2(
-    uint256 indexed epochId,
-    uint256 startTime,
-    uint256 endTime,
-    EpochCapability capability,
-    bytes32 dataPolicyHash
-);
+```rust
+pub struct EpochCreatedV2 {
+    pub epoch_id: u128,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub capability: EpochCapability,
+    pub data_policy_hash: [u8; 32],
+}
 ```
 
 ### 9.2 Legacy Compatibility
 
 The legacy `EpochCreated` event MUST also be emitted for backwards compatibility:
 
-```solidity
-event EpochCreated(uint256 indexed epochId, uint256 startTime, uint256 endTime);
+```rust
+pub struct EpochCreated {
+    pub epoch_id: u128,
+    pub start_time: u64,
+    pub end_time: u64,
+}
 ```
 
 ---
@@ -288,16 +293,16 @@ event EpochCreated(uint256 indexed epochId, uint256 startTime, uint256 endTime);
 
 Raised when capability value is invalid.
 
-```solidity
-error InvalidCapability();
+```rust
+InvalidCapability
 ```
 
 ### 10.2 InvalidDataPolicyHash
 
 Raised when data policy hash is required but not provided.
 
-```solidity
-error InvalidDataPolicyHash();
+```rust
+InvalidDataPolicyHash
 ```
 
 ---
@@ -343,13 +348,15 @@ All invariants from v0.4 remain in effect.
 
 ### 12.1 On-Chain Storage
 
-```solidity
-// Existing (unchanged)
-mapping(uint256 => Epoch) private _epochs;
+```rust
+pub struct Storage {
+    // Existing (unchanged)
+    epochs: BTreeMap<u128, Epoch>,
 
-// New (v0.5)
-mapping(uint256 => EpochCapability) private _epochCapabilities;
-mapping(uint256 => bytes32) private _epochDataPolicyHashes;
+    // New (v0.5)
+    epoch_capabilities: BTreeMap<u128, EpochCapability>,
+    epoch_data_policy_hashes: BTreeMap<u128, [u8; 32]>,
+}
 ```
 
 ### 12.2 ABI Safety
