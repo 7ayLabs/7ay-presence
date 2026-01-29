@@ -115,6 +115,6 @@ Changes to implemented specifications:
 
 ## 7. References
 
-- 7ay DAO Governance: [governance contracts]
-- Protocol Specifications: `specs/v0.6/`
+- 7ay DAO Governance: governance contracts (TODO: add canonical link)
+- Protocol Specifications: `specs/README.md`
 - RFC Template: `rfcs/0000-template.md`

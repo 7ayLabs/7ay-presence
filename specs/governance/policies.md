@@ -111,18 +111,18 @@ ASSERT: policyDocument.epochId == targetEpochId
 
 ## 5. Compliance Hooks
 
-For auditing and compliance, the protocol supports content-free hooks:
+For auditing and compliance, the protocol supports content-free, aggregate-only hooks:
 
 | Hook | Trigger | Data |
 |------|---------|------|
-| H1: DataCreated | Ephemeral data created | epochId, actorId, timestamp, size |
-| H2: DataAccessed | Ephemeral data read | epochId, actorId, timestamp |
-| H3: DataExpired | TTL expiration | epochId, dataId, timestamp |
-| H4: DataDestroyed | Epoch termination | epochId, timestamp |
+| H1: DataCreated | Ephemeral data created | epochId, timestamp, createdCount, totalSizeDelta |
+| H2: DataAccessed | Ephemeral data read | epochId, timestamp, accessCount |
+| H3: DataExpired | TTL expiration | epochId, timestamp, expiredCount |
+| H4: DataDestroyed | Epoch termination | epochId, timestamp, destroyedCount |
 | H5: PolicyViolation | Constraint breach | epochId, constraintId, timestamp |
 | H6: AuditCheckpoint | Periodic audit | epochId, timestamp, metrics |
 
-Hooks MUST NOT expose ephemeral data content.
+Hooks MUST NOT expose ephemeral data content or any stable per-actor or per-data identifiers (including actorId, dataId); payloads MUST be aggregate-only at the epoch scope.
 
 ---
 

@@ -162,7 +162,7 @@ A validator MAY be removed if and only if:
 pub fn quorum_size(&self) -> u32 {
     let count = self.active_validator_count;
     if count == 0 { return 1; }
-    (count * self.quorum_threshold + 99) / 100  // ceil division
+    (count * self.quorum_threshold as u32 + 99) / 100  // ceil division
 }
 ```
 

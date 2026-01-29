@@ -11,6 +11,10 @@
 This document provides guidance for implementing the 7ay Presence Protocol
 in Rust using the Substrate framework.
 
+> **Note:** Unlike other spec files which use clean Rust examples, this document
+> intentionally uses Substrate FRAME macros (`#[pallet::*]`) as it serves as
+> implementation guidance for the Substrate target platform.
+
 ---
 
 ## 2. Pallet Mapping

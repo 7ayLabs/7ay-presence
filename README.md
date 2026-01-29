@@ -1,7 +1,7 @@
 # 7ay Presence Protocol
 
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](https://mariadb.com/bsl11/)
-[![Version](https://img.shields.io/badge/Version-0.6.7-green.svg)](specs/v0.6/)
+[![Version](https://img.shields.io/badge/Version-0.6.7-green.svg)](specs/README.md)
 
 Canonical specification for the 7ay Proof of Presence (PoP) Protocol.
 

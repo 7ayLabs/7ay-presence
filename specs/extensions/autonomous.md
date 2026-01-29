@@ -410,7 +410,10 @@ On epoch close:
 
 ```rust
 // In PresenceRegistry (optional extension)
-pub struct AutonomousStorage {
+pub struct PresenceRegistry {
+    // ... existing fields ...
+
+    // Autonomous extension storage
     autonomous_intent_hashes: BTreeMap<(AccountId, u128), [u8; 32]>,
 }
 

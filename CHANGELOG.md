@@ -10,18 +10,18 @@ All notable changes to the 7ay Presence Protocol specification.
 - Added RFC governance process
 
 ### Added
-- `specs/v0.6/overview.md` — Protocol vision
-- `specs/v0.6/model.md` — Core protocol model
-- `specs/v0.6/presence.md` — Consolidated presence specification
-- `specs/v0.6/epochs.md` — Epoch lifecycle
-- `specs/v0.6/actors.md` — Actor identity and scope
-- `specs/v0.6/validators.md` — Validator management
-- `specs/v0.6/disputes.md` — Dispute resolution
-- `specs/v0.6/ephemeral.md` — Ephemeral data governance
-- `specs/v0.6/capabilities.md` — Capability system
-- `specs/v0.6/policies.md` — Data policies
-- `specs/v0.6/state-machine.md` — Unified state transitions
-- `specs/v0.6/substrate.md` — Substrate implementation notes
+- `specs/reference/overview.md` — Protocol vision
+- `specs/reference/model.md` — Core protocol model
+- `specs/core/presence.md` — Consolidated presence specification
+- `specs/core/epochs.md` — Epoch lifecycle
+- `specs/core/actors.md` — Actor identity and scope
+- `specs/core/validators.md` — Validator management
+- `specs/core/disputes.md` — Dispute resolution
+- `specs/governance/ephemeral.md` — Ephemeral data governance
+- `specs/governance/capabilities.md` — Capability system
+- `specs/governance/policies.md` — Data policies
+- `specs/reference/state-machine.md` — Unified state transitions
+- `specs/reference/substrate.md` — Substrate implementation notes
 - `rfcs/README.md` — RFC governance process
 - `rfcs/0000-template.md` — RFC template
 
