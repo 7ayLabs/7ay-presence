@@ -1,5 +1,9 @@
-# Errors Spec v0.6
-> v0.6 semantic layer errors (primarily off-chain)
+# 7ay Proof of Presence (PoP)
+## Protocol Specification — Errors
+**Version:** v0.6 (consolidated from v0.4-v0.6)
+**Status:** Active
+
+> Includes on-chain errors (v0.4-v0.5) and off-chain semantic layer errors (v0.6)
 
 ## Overview
 

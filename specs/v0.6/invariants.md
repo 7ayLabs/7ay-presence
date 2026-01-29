@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
-## Protocol Specification — v0.6 Invariants
-**Version:** v0.6.7
-**Status:** Draft
+## Protocol Specification — Invariants
+**Version:** v0.6 (consolidated INV1-42)
+**Status:** Active
 **Scope:** Protocol-level (canonical)
-**Depends on:** epoch.md v0.2, presence.md v0.4, validator.md v0.4, ephemeral.md v0.5, autonomous.md v0.6.6, octopus.md v0.6.7
+**Depends on:** All v0.6 specifications
 
 ---
 
