@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Errors
-**Version:** v0.6.9 (consolidated from v0.4-v0.6.9)
+**Version:** v0.7.6 (consolidated from v0.4-v0.7.6)
 **Status:** Active
 
-> Includes on-chain errors (v0.4-v0.5) and off-chain semantic layer errors (v0.6-v0.6.9)
+> Includes on-chain errors (v0.4-v0.5, v0.7.0) and off-chain semantic layer errors (v0.6-v0.7.0)
 
 ## Overview
 
@@ -25,10 +25,16 @@ On-chain errors from v0.5 and earlier remain unchanged.
 | Messaging | Off-chain | New in v0.6, Updated v0.6.9 |
 | State Sync | Off-chain | New in v0.6 |
 | Media | Off-chain | New in v0.6.4 |
-| Boomerang | Off-chain | New in v0.6.5 |
-| Autonomous | Off-chain | New in v0.6.6 |
-| Octopus | Off-chain | New in v0.6.7, Updated v0.6.9 |
+| Boomerang | Off-chain | New in v0.6.5, Updated v0.7.0 |
+| Autonomous | Off-chain | New in v0.6.6, Updated v0.7.0 |
+| Octopus | Off-chain | New in v0.6.7, Updated v0.7.0 |
 | Key Management | Off-chain | New in v0.6.9 |
+| Staking | On-chain | New in v0.7.0 (RFC-0001) |
+| Recovery | On-chain | New in v0.7.0 (RFC-0004) |
+| Upgrades | On-chain | New in v0.7.0 (RFC-0004) |
+| Device | Off-chain | New in v0.7.1 |
+| Storage | Off-chain | New in v0.7.1 |
+| Lifecycle | Off-chain | New in v0.7.5 |
 
 ---
 
@@ -53,9 +59,75 @@ enum ErrorCategory {
   MEDIA = "MEDIA",
   BOOMERANG = "BOOMERANG",
   AUTONOMOUS = "AUTONOMOUS",
-  OCTOPUS = "OCTOPUS"
+  OCTOPUS = "OCTOPUS",
+  KEY_MANAGEMENT = "KEY_MANAGEMENT",
+  STAKING = "STAKING",
+  RECOVERY = "RECOVERY",
+  UPGRADES = "UPGRADES",
+  DEVICE = "DEVICE",
+  STORAGE = "STORAGE",
+  LIFECYCLE = "LIFECYCLE"
 }
 ```
+
+---
+
+## Node Model Errors (v0.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| NODE_001 | InvalidNodeIdentity | Node identity not derivable from on-chain state | INV19 |
+| NODE_002 | NodeEpochMismatch | Node bound to different epoch | INV20 |
+| NODE_003 | InvalidNodeRole | Role not valid for operation | - |
+| NODE_004 | MissingCapability | Node lacks required capability | - |
+| NODE_005 | NodeNotActive | Node not in active state | INV19 |
+
+---
+
+## Discovery Errors (v0.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| DISC_001 | DiscoveryNotSupported | Epoch lacks discovery capability | INV21 |
+| DISC_002 | EpochScopeMismatch | Query targets different epoch | INV21 |
+| DISC_003 | InvalidPresenceState | Sender presence not valid | INV22 |
+| DISC_004 | QueryLimitExceeded | Query returns too many results | - |
+| DISC_005 | InvalidQueryFilter | Query filter parameters invalid | - |
+| DISC_006 | NodeNotDiscoverable | Target node not discoverable | INV22 |
+| DISC_007 | TtlExpired | Announcement TTL has expired | - |
+| DISC_008 | InvalidAnnouncement | Announcement validation failed | - |
+| DISC_009 | DuplicateAnnouncement | Announcement already received | - |
+| DISC_010 | RateLimited | Query rate limit exceeded | INV45 |
+| DISC_011 | PresenceRequired | Sender lacks presence for query | INV45 |
+
+---
+
+## Message Errors (v0.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| MSG_001 | InvalidMessageType | Unknown or invalid message type | - |
+| MSG_002 | InvalidSignature | Message signature verification failed | INV24 |
+| MSG_003 | NonceReused | Nonce already used by sender | INV25 |
+| MSG_004 | EpochMismatch | Message epoch doesn't match current | INV23 |
+| MSG_005 | SenderNotInEpoch | Sender lacks presence in referenced epoch | INV23 |
+| MSG_006 | MessageExpired | Message timestamp outside valid window | - |
+| MSG_007 | InvalidPayload | Message payload validation failed | - |
+| MSG_008 | VersionMismatch | Protocol version not supported | - |
+| MSG_009 | ChainMismatch | Message chain_id doesn't match current chain | INV43 |
+| MSG_010 | BlockBoundExceeded | Current block exceeds message block_bound | INV43 |
+
+---
+
+## State Sync Errors (v0.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| SYNC_001 | SyncNotSupported | Epoch lacks state sync capability | - |
+| SYNC_002 | InvalidStateVector | State vector validation failed | INV26 |
+| SYNC_003 | StateConflict | Conflicting state updates detected | INV26 |
+| SYNC_004 | ValidatorRequired | Only validators can perform sync | - |
+| SYNC_005 | SyncTimeout | State sync request timed out | - |
 
 ---
 
@@ -72,19 +144,23 @@ enum ErrorCategory {
 
 ---
 
-## Boomerang Errors (v0.6.5)
+## Boomerang Errors (v0.6.5, Updated v0.7.0)
 
 | Code | Name | Condition | Invariant |
 |------|------|-----------|-----------|
-| BOOM_001 | PathNotDivergent | Return path same as forward path | INV30 |
+| BOOM_001 | PathNotDivergent | Return path same as forward path (standard mode) | INV30 |
 | BOOM_002 | BoomerangTimeout | Cycle timeout exceeded | INV31 |
 | BOOM_003 | InvalidHopSignature | Hop signature verification failed | INV33 |
 | BOOM_004 | BoomerangAborted | Cycle aborted mid-flight | INV32 |
 | BOOM_005 | InvalidReturnPath | Return path contains invalid nodes | INV30 |
+| BOOM_006 | SmallNetworkFallbackDisabled | Same path used but fallback disabled | INV54 |
+| BOOM_007 | InsufficientAttestations | Not enough validator attestations for level | INV55 |
+| BOOM_008 | InvalidAttestation | Validator attestation verification failed | INV55 |
+| BOOM_009 | ModeNotTransparent | Small network mode not indicated in complete | INV56 |
 
 ---
 
-## Autonomous Errors (v0.6.6)
+## Autonomous Errors (v0.6.6, Updated v0.7.0)
 
 | Code | Name | Condition | Invariant |
 |------|------|-----------|-----------|
@@ -94,19 +170,26 @@ enum ErrorCategory {
 | AUTO_004 | IntentExpired | Intent has passed expiration time | INV37 |
 | AUTO_005 | MaxExecutionsReached | Execution count at maximum | - |
 | AUTO_006 | IntentNotFound | Referenced intent does not exist | - |
+| AUTO_010 | InsufficientReputation | Actor reputation below tier minimum | INV50 |
+| AUTO_011 | CooldownActive | Actor in cooldown from rejection | INV53 |
+| AUTO_012 | TierThresholdNotMet | Execution exceeds tier threshold | INV52 |
+| AUTO_013 | ReputationUpdateFailed | Failed to update reputation score | INV51 |
 
 ---
 
-## Octopus Errors (v0.6.7)
+## Octopus Errors (v0.6.7, Updated v0.7.0)
 
 | Code | Name | Condition | Invariant |
 |------|------|-----------|-----------|
 | OCTO_001 | BelowActivationThreshold | Division requested below 45% | INV38 |
-| OCTO_002 | SubNodeLimitReached | Already at 4 sub-nodes | INV40 |
+| OCTO_002 | SubNodeLimitReached | Already at dynamic max for throughput | INV40, INV63 |
 | OCTO_003 | InvalidSubNodeId | Sub-node ID doesn't match derivation | INV39 |
 | OCTO_004 | HysteresisNotMet | Merge requested before sustained low | INV42 |
 | OCTO_005 | StateReconciliationFailed | Missing sub-node states for merge | INV41 |
 | OCTO_006 | InvalidDivisionState | Cannot divide/merge in current state | - |
+| OCTO_007 | InvalidVRFProof | VRF proof verification failed | INV39 |
+| OCTO_008 | ExceedsDynamicLimit | Requested sub-nodes exceeds calculated limit | INV63 |
+| OCTO_009 | AbsoluteMaxExceeded | Cannot exceed 8 sub-nodes (hard cap) | INV63 |
 
 ### OCTO_001: BelowActivationThreshold
 ```typescript
@@ -127,10 +210,12 @@ enum ErrorCategory {
 {
   code: "OCTO_002",
   category: "OCTOPUS",
-  message: "Cannot create more sub-nodes, limit of 4 reached",
+  message: "Cannot create more sub-nodes, dynamic limit reached",
   context: {
     parentNode: "0x1234...",
-    currentSubNodes: 4
+    currentSubNodes: 4,
+    dynamicLimit: 4,
+    throughputPercent: 85
   }
 }
 ```
@@ -145,80 +230,6 @@ enum ErrorCategory {
     epochId: 42,
     validator: "0x1234...",
     expectedRandomness: "0xabcd..."
-  }
-}
-```
-
----
-
-## Message Errors (v0.6.9 Security)
-
-| Code | Name | Condition | Invariant |
-|------|------|-----------|-----------|
-| MSG_009 | ChainMismatch | Message chain_id doesn't match current chain | INV43 |
-| MSG_010 | BlockBoundExceeded | Current block exceeds message block_bound | INV43 |
-
-### MSG_009: ChainMismatch
-```typescript
-{
-  code: "MSG_009",
-  category: "MESSAGE",
-  message: "Message chain_id does not match current chain",
-  context: {
-    messageChainId: 1,
-    currentChainId: 137,
-    sender: "0x1234..."
-  }
-}
-```
-
-### MSG_010: BlockBoundExceeded
-```typescript
-{
-  code: "MSG_010",
-  category: "MESSAGE",
-  message: "Message has expired (current block exceeds block_bound)",
-  context: {
-    blockBound: 1000000,
-    currentBlock: 1000150,
-    sender: "0x1234..."
-  }
-}
-```
-
----
-
-## Discovery Errors (v0.6.9 Security)
-
-| Code | Name | Condition | Invariant |
-|------|------|-----------|-----------|
-| DISC_010 | RateLimited | Query rate limit exceeded | INV45 |
-| DISC_011 | PresenceRequired | Sender lacks presence for query | INV45 |
-
-### DISC_010: RateLimited
-```typescript
-{
-  code: "DISC_010",
-  category: "DISCOVERY",
-  message: "Query rate limit exceeded",
-  context: {
-    sender: "0x1234...",
-    queriesThisMinute: 61,
-    maxQueriesPerMinute: 60
-  }
-}
-```
-
-### DISC_011: PresenceRequired
-```typescript
-{
-  code: "DISC_011",
-  category: "DISCOVERY",
-  message: "Sender must have valid presence to query discovery",
-  context: {
-    sender: "0x1234...",
-    epochId: 42,
-    presenceState: "None"
   }
 }
 ```
@@ -291,6 +302,319 @@ enum ErrorCategory {
 
 ---
 
+## Staking Errors (v0.7.0)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| STK_001 | InsufficientStake | Stake below minimum requirement | INV46 |
+| STK_002 | StakeConcentrationExceeded | Stake exceeds 33% of total | INV47 |
+| STK_003 | CooldownActive | Stake reduction cooldown not complete | - |
+| STK_004 | InvalidSlashAmount | Slash exceeds maximum for violation type | INV48 |
+| STK_005 | EvidenceRewardExceeded | Evidence reward exceeds cap | INV49 |
+| STK_006 | NotValidator | Account is not an active validator | - |
+| STK_007 | MinimumValidatorCount | Would reduce validators below minimum | INV46 |
+
+### STK_001: InsufficientStake
+```typescript
+{
+  code: "STK_001",
+  category: "STAKING",
+  message: "Stake amount below minimum requirement",
+  context: {
+    validator: "0x1234...",
+    stakeAmount: 5000,
+    minimumRequired: 10000
+  }
+}
+```
+
+### STK_002: StakeConcentrationExceeded
+```typescript
+{
+  code: "STK_002",
+  category: "STAKING",
+  message: "Stake would exceed 33% concentration limit",
+  context: {
+    validator: "0x1234...",
+    proposedStake: 50000,
+    totalStake: 100000,
+    maxAllowed: 33000
+  }
+}
+```
+
+---
+
+## Recovery Errors (v0.7.0)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| REC_001 | NotSuspended | Validator not in Suspended status | INV57 |
+| REC_002 | ProposalExists | Recovery already in progress | - |
+| REC_003 | VotingExpired | Voting period has ended | - |
+| REC_004 | NotValidator | Caller is not active validator | - |
+| REC_005 | AlreadyVoted | Validator already voted on this recovery | - |
+| REC_006 | CooldownActive | Recovery cooldown not complete | INV58 |
+
+### REC_001: NotSuspended
+```typescript
+{
+  code: "REC_001",
+  category: "RECOVERY",
+  message: "Validator must be in Suspended status to initiate recovery",
+  context: {
+    validator: "0x1234...",
+    currentStatus: "Active"
+  }
+}
+```
+
+### REC_006: CooldownActive
+```typescript
+{
+  code: "REC_006",
+  category: "RECOVERY",
+  message: "Recovery cooldown period not complete",
+  context: {
+    validator: "0x1234...",
+    cooldownUntil: 1705604800,
+    currentTime: 1705500000
+  }
+}
+```
+
+---
+
+## Upgrade Errors (v0.7.0)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| UPG_001 | NotFound | Upgrade ID not found | - |
+| UPG_002 | NotApproved | Upgrade not yet approved | - |
+| UPG_003 | DelayNotElapsed | Upgrade delay not complete | INV59 |
+| UPG_004 | MissingDisclosure | Emergency upgrade requires disclosure | INV60 |
+| UPG_005 | NotValidator | Caller not active validator | - |
+| UPG_006 | AlreadyVoted | Duplicate vote | - |
+| UPG_007 | VotingClosed | Voting period ended | - |
+
+### UPG_003: DelayNotElapsed
+```typescript
+{
+  code: "UPG_003",
+  category: "UPGRADES",
+  message: "Upgrade delay period not complete",
+  context: {
+    upgradeId: 5,
+    upgradeType: "Protocol",
+    proposedAt: 1705000000,
+    effectiveAt: 1705604800,
+    currentTime: 1705300000
+  }
+}
+```
+
+### UPG_004: MissingDisclosure
+```typescript
+{
+  code: "UPG_004",
+  category: "UPGRADES",
+  message: "Emergency upgrades require security disclosure",
+  context: {
+    upgradeId: 6,
+    upgradeType: "Emergency"
+  }
+}
+```
+
+---
+
+## Device Errors (v0.7.1)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| STOR_001 | DeviceNotRegistered | Device ID not found in registry | - |
+| STOR_002 | DeviceAlreadyRegistered | Device index already used by owner | - |
+| STOR_003 | DeviceNotPresent | Device lacks presence in current epoch | INV65 |
+| STOR_004 | DeviceRevoked | Device permanently revoked | - |
+| STOR_005 | DeviceLost | Device marked as lost | - |
+| STOR_009 | InsufficientDevices | Not enough devices for threshold | INV66 |
+| STOR_020 | UnauthorizedDevice | Device not in vault's ring | INV65 |
+
+### STOR_001: DeviceNotRegistered
+```typescript
+{
+  code: "STOR_001",
+  category: "DEVICE",
+  message: "Device ID not found in registry",
+  context: {
+    deviceId: "0x1234...",
+    owner: "0xabcd..."
+  }
+}
+```
+
+### STOR_003: DeviceNotPresent
+```typescript
+{
+  code: "STOR_003",
+  category: "DEVICE",
+  message: "Device lacks presence in current epoch",
+  context: {
+    deviceId: "0x1234...",
+    owner: "0xabcd...",
+    epochId: 42,
+    deviceState: "Inactive",
+    ownerPresence: "Validated"
+  }
+}
+```
+
+### STOR_004: DeviceRevoked
+```typescript
+{
+  code: "STOR_004",
+  category: "DEVICE",
+  message: "Device has been permanently revoked",
+  context: {
+    deviceId: "0x1234...",
+    owner: "0xabcd...",
+    revokedAt: 1705000000,
+    reason: "Compromised"
+  }
+}
+```
+
+---
+
+## Storage Errors (v0.7.1)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| STOR_006 | VaultNotFound | Vault ID not found | - |
+| STOR_007 | VaultLocked | Vault access state is Locked | INV67 |
+| STOR_008 | VaultSuspended | Vault suspended by owner | - |
+| STOR_010 | ThresholdNotMet | Present devices below threshold | INV67 |
+| STOR_011 | ShareAlreadyProvided | Device already provided share | - |
+| STOR_012 | InvalidShare | Share verification failed | - |
+| STOR_013 | ShareMismatch | Share index doesn't match device | INV69 |
+| STOR_014 | StorageQuotaExceeded | Vault storage limit reached | - |
+| STOR_015 | ItemNotFound | Storage item not found | - |
+| STOR_016 | ItemTooLarge | Item exceeds max size | - |
+| STOR_017 | InvalidMediaType | Media type not allowed by policy | - |
+| STOR_018 | KeyVersionMismatch | Key version mismatch (item or share) | INV70 |
+| STOR_019 | IntegrityCheckFailed | Content hash mismatch | INV72 |
+
+### STOR_007: VaultLocked
+```typescript
+{
+  code: "STOR_007",
+  category: "STORAGE",
+  message: "Vault access state is Locked - insufficient devices present",
+  context: {
+    vaultId: "0x1234...",
+    presentDevices: 2,
+    threshold: 3,
+    accessState: "Locked"
+  }
+}
+```
+
+### STOR_010: ThresholdNotMet
+```typescript
+{
+  code: "STOR_010",
+  category: "STORAGE",
+  message: "Present devices below unlock threshold",
+  context: {
+    vaultId: "0x1234...",
+    presentDevices: 1,
+    threshold: 2,
+    totalDevices: 3
+  }
+}
+```
+
+### STOR_019: IntegrityCheckFailed
+```typescript
+{
+  code: "STOR_019",
+  category: "STORAGE",
+  message: "Content hash does not match stored hash",
+  context: {
+    itemId: "0x1234...",
+    expectedHash: "0xabcd...",
+    actualHash: "0xef01..."
+  }
+}
+```
+
+---
+
+## Lifecycle Errors (v0.7.5)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| LIFE_001 | UnlockSessionTimeout | Share collection timeout | INV76 |
+| LIFE_002 | InsufficientSharesCollected | Not enough shares received | INV76 |
+| LIFE_003 | KeyReconstructionFailed | Shamir reconstruction failed | INV77 |
+| LIFE_004 | KeyVerificationFailed | Reconstructed key doesn't match commitment | INV77 |
+| LIFE_005 | RotationInProgress | Key rotation already in progress | INV78 |
+| LIFE_006 | RotationFailed | Key rotation failed mid-process | INV78 |
+| LIFE_007 | RecoveryInProgress | Device recovery already in progress | - |
+| LIFE_008 | RecoveryFailed | Device recovery failed | - |
+| LIFE_009 | VaultSuspended | Vault is in suspended state | - |
+| LIFE_010 | VaultMigrating | Vault is migrating keys | INV78 |
+
+### LIFE_001: UnlockSessionTimeout
+```typescript
+{
+  code: "LIFE_001",
+  category: "LIFECYCLE",
+  message: "Unlock session timed out waiting for shares",
+  context: {
+    sessionId: "0x1234...",
+    vaultId: "0xabcd...",
+    receivedShares: 1,
+    requiredShares: 2,
+    timeoutAt: 1705000030
+  }
+}
+```
+
+### LIFE_003: KeyReconstructionFailed
+```typescript
+{
+  code: "LIFE_003",
+  category: "LIFECYCLE",
+  message: "Failed to reconstruct vault key from shares",
+  context: {
+    vaultId: "0xabcd...",
+    sharesUsed: 2,
+    threshold: 2,
+    reason: "InvalidShareIndex"
+  }
+}
+```
+
+### LIFE_006: RotationFailed
+```typescript
+{
+  code: "LIFE_006",
+  category: "LIFECYCLE",
+  message: "Key rotation failed during re-encryption",
+  context: {
+    vaultId: "0xabcd...",
+    oldKeyVersion: 1,
+    newKeyVersion: 2,
+    itemsReencrypted: 45,
+    totalItems: 100,
+    reason: "ItemDecryptionFailed"
+  }
+}
+```
+
+---
+
 ## Recovery Actions
 
 | Error Category | Recovery |
@@ -300,10 +624,16 @@ enum ErrorCategory {
 | MSG_* | Reject message, log; for MSG_009/010 reject immediately |
 | SYNC_* | Force complete sync |
 | MEDIA_* | Reject media, notify sender |
-| BOOM_* | Retry with new boomerangId |
-| AUTO_* | Revoke intent, re-declare if needed |
+| BOOM_* | Retry with new boomerangId; use fallback if small network |
+| AUTO_* | Wait for cooldown, improve reputation, re-declare if needed |
 | OCTO_* | Wait for threshold, retry division/merge |
 | KEY_* | Wait for epoch transition or contact validators |
+| STK_* | Adjust stake amount, wait for cooldown |
+| REC_* | Wait for voting, ensure proper status |
+| UPG_* | Wait for delay, ensure proper quorum |
+| STOR_001-005 | Check device registration, recover lost device, re-register |
+| STOR_006-019 | Unlock vault, wait for devices, retry operation |
+| LIFE_001-010 | Wait for devices, retry unlock, wait for rotation complete |
 
 ---
 
@@ -317,3 +647,6 @@ enum ErrorCategory {
 | v0.6.6 | Added AUTO_001-006 for autonomous transactions |
 | v0.6.7 | Added OCTO_001-006 for octopus scaling |
 | v0.6.9 | **Security hardening**: Added MSG_009-010 (chain binding), DISC_010-011 (rate limiting), KEY_001-004 (key management), OCTO_007 (VRF verification) |
+| v0.7.0 | **Production readiness**: Added STK_001-007 (staking), REC_001-006 (recovery), UPG_001-007 (upgrades), AUTO_010-013 (reputation), BOOM_006-009 (small network), OCTO_008-009 (dynamic scaling) |
+| v0.7.1 | **Device layer**: Added STOR_001-020 (device and storage errors) |
+| v0.7.5 | **Lifecycle management**: Added LIFE_001-010 (unlock, rotation, recovery errors) |

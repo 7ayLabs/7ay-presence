@@ -147,6 +147,3 @@ Hooks MUST NOT expose ephemeral data content or any stable per-actor or per-data
 
 - ephemeral.md — Ephemeral data governance
 - capabilities.md — EpochCapability immutability
-- archive/v0.5/policy-definition.md — Original definition
-- archive/v0.5/policy-commitment.md — Commitment semantics
-- archive/v0.5/compliance-hooks.md — Audit hooks

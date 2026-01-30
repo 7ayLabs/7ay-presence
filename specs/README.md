@@ -2,7 +2,7 @@
 
 > Proof of Presence (PoP) — Canonical Protocol Specifications
 
-**Version:** 0.6.9
+**Version:** 0.7.6
 **Status:** Active
 **License:** BSL 1.1 → Apache 2.0 (2030)
 
@@ -106,9 +106,15 @@ Optional protocol extensions. Implementations MAY support these.
 | Spec | Description | Invariants |
 |------|-------------|------------|
 | [ephemeral-media.md](extensions/ephemeral-media.md) | Images/audio within epochs | INV27-29 |
-| [boomerang.md](extensions/boomerang.md) | Return path verification | INV30-33 |
-| [autonomous.md](extensions/autonomous.md) | Pattern-based execution | INV34-37 |
-| [octopus.md](extensions/octopus.md) | Dynamic node division | INV38-42 |
+| [boomerang.md](extensions/boomerang.md) | Return path verification | INV30-33, INV54-56 |
+| [autonomous.md](extensions/autonomous.md) | Pattern-based execution | INV34-37, INV50-53 |
+| [octopus.md](extensions/octopus.md) | Dynamic node division | INV38-42, INV63 |
+| [devices.md](extensions/devices.md) | Trusted device registration | INV64-65 |
+| [vaults.md](extensions/vaults.md) | Presence-gated storage | INV66-68 |
+| [zk-proofs.md](extensions/zk-proofs.md) | Zero-knowledge circuits | INV73-75 |
+| [crypto.md](extensions/crypto.md) | Cryptographic operations | INV69 |
+| [storage.md](extensions/storage.md) | Storage operations | INV70-72 |
+| [lifecycle.md](extensions/lifecycle.md) | Vault lifecycle management | INV76-78 |
 
 ---
 
@@ -121,7 +127,7 @@ Cross-cutting documentation and implementation guides.
 | [overview.md](reference/overview.md) | Protocol vision and principles |
 | [model.md](reference/model.md) | Conceptual system model |
 | [state-machine.md](reference/state-machine.md) | Consolidated state transitions |
-| [invariants.md](reference/invariants.md) | Protocol invariants (INV1-45) |
+| [invariants.md](reference/invariants.md) | Protocol invariants (INV1-78) |
 | [errors.md](reference/errors.md) | Error catalog and priority |
 | [substrate.md](reference/substrate.md) | Rust/Substrate implementation notes |
 
@@ -160,6 +166,9 @@ Cross-cutting documentation and implementation guides.
 | `v0.6.7` | Legacy reference (archived) |
 | `v0.6.8-specs` | Specs-only repository |
 | `v0.6.9` | Security hardening release |
+| `v0.7.0` | Production readiness (staking, recovery, governance) |
+| `v0.7.1-0.7.5` | Presence-based storage (devices, vaults, ZK, crypto, storage, lifecycle) |
+| `v0.7.6` | Documentation cleanup and consistency fixes |
 
 History preserved in git. Use `git log --follow <file>` for file history.
 

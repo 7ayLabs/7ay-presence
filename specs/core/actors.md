@@ -270,7 +270,6 @@ This specification is additive:
 
 - epoch.md v0.2 — Epoch lifecycle
 - presence.md v0.4 — Presence state machine
-- model.md — Actor definition
 
 ---
 

@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Octopus Scaling
-**Version:** v0.6.9
+**Version:** v0.7.0
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** node-model.md v0.6.2, message-catalog.md v0.6.9, invariants.md v0.6.9
+**Depends on:** node-model.md v0.6.2, message-catalog.md v0.6.9, invariants.md v0.7.0
 
 ---
 
@@ -245,25 +245,69 @@ interface SubNode {
 }
 ```
 
-### 4.4 Sub-Node Limit (INV40)
+### 4.4 Sub-Node Limit (INV40 + INV63)
 
-**INV40: Sub-Node Limit**
-A node MUST NOT have more than 4 sub-nodes.
+**INV40: Sub-Node Limit (Base Rule)**
+A node MUST NOT exceed the maximum sub-node count.
 
 ```
 ∀ parent:
-  count(subNodes[parent]) ≤ 4
+  count(subNodes[parent]) ≤ maxSubNodes
 ```
 
-Division can occur twice:
-- First division: 1 → 2 sub-nodes
-- Second division: 2 → 4 sub-nodes
+**INV63: Dynamic Sub-Node Scaling (v0.7.0)**
+The maximum sub-node count scales dynamically with throughput.
 
 ```
-Division 1:       Division 2:
-    P                 P
-   / \              / | | \
-  S0  S1          S0 S1 S2 S3
+∀ parent:
+  maxSubNodes = min(8, ceil(throughputPercent / 22.5))
+
+where:
+  throughputPercent = (currentThroughput / maxThroughput) * 100
+```
+
+**Dynamic Scaling Table:**
+
+| Throughput | Max Sub-Nodes | Division Level |
+|------------|---------------|----------------|
+| 45-67% | 2 | 1 |
+| 68-89% | 3 | - |
+| 90-112% | 4 | 2 |
+| 113-134% | 5 | - |
+| 135-156% | 6 | 3 |
+| 157-179% | 7 | - |
+| ≥180% | 8 (cap) | 3 |
+
+```typescript
+function calculateDynamicLimit(throughputPercent: number): number {
+  // At 45% (activation): 2 sub-nodes
+  // At 90%: 4 sub-nodes
+  // At 180% (theoretical): 8 sub-nodes (capped)
+  return Math.min(8, Math.ceil(throughputPercent / 22.5));
+}
+
+function canDivide(parent: Address, targetCount: number): bool {
+  const throughput = getThroughputPercent(parent);
+  const dynamicLimit = calculateDynamicLimit(throughput);
+  return targetCount <= dynamicLimit;
+}
+```
+
+**Benefits of Dynamic Scaling:**
+- Avoids over-provisioning at moderate load
+- Allows extreme scaling for traffic bursts
+- Smooth scaling curve prevents oscillation
+
+Division patterns:
+- First division: 1 → 2 sub-nodes (at 45%)
+- Second division: 2 → 4 sub-nodes (at 90%)
+- Third division: 4 → 8 sub-nodes (at 135%+)
+
+```
+Level 1:          Level 2:              Level 3:
+    P                 P                     P
+   / \              / | | \          /  |  |  |  |  |  |  \
+  S0  S1          S0 S1 S2 S3      S0 S1 S2 S3 S4 S5 S6 S7
 ```
 
 ---
@@ -542,9 +586,10 @@ If a sub-node fails:
 |----|------|------|
 | INV38 | Activation Threshold | Divide when throughput > 45% |
 | INV39 | Sub-Node Identity (v0.6.9) | ID = keccak256(parent, index, epochId, epochRandomness) + VRF verification |
-| INV40 | Sub-Node Limit | Max 4 sub-nodes per parent |
+| INV40 | Sub-Node Limit | Max sub-nodes per parent (dynamic) |
 | INV41 | State Consistency | Merged state reconcilable |
 | INV42 | Deactivation Hysteresis | Merge when < 20% sustained |
+| INV63 | Dynamic Sub-Node Scaling (v0.7.0) | maxSubNodes = min(8, ceil(throughput / 22.5)) |
 
 ---
 
@@ -611,11 +656,13 @@ State sync with octopus nodes:
 | Code | Name | Condition |
 |------|------|-----------|
 | OCTO_001 | BelowActivationThreshold | Division requested below 45% |
-| OCTO_002 | SubNodeLimitReached | Already at 4 sub-nodes |
+| OCTO_002 | SubNodeLimitReached | Already at dynamic max for current throughput |
 | OCTO_003 | InvalidSubNodeId | Sub-node ID doesn't match derivation |
 | OCTO_004 | HysteresisNotMet | Merge requested before sustained low |
 | OCTO_005 | StateReconciliationFailed | Missing sub-node states for merge |
 | OCTO_006 | InvalidDivisionState | Cannot divide/merge in current state |
+| OCTO_007 | ExceedsDynamicLimit | Requested sub-nodes exceeds calculated limit |
+| OCTO_008 | AbsoluteMaxExceeded | Cannot exceed 8 sub-nodes (hard cap) |
 
 ---
 
@@ -670,7 +717,7 @@ const OctopusConfig = {
 
 - node-model.md v0.6.2 — Node structure
 - message-catalog.md v0.6.7 — Message types
-- invariants.md v0.6.7 — Protocol invariants
+- invariants.md v0.7.0 — Protocol invariants INV38-42, INV63
 - state-sync.md v0.6.1 — State synchronization
 
 ---
@@ -681,3 +728,4 @@ const OctopusConfig = {
 |---------|---------|
 | v0.6.7 | Initial Octopus Scaling specification |
 | v0.6.9 | **Security hardening**: VRF-based sub-node identity derivation (INV39 update), epoch binding, pre-computation attack prevention |
+| v0.7.0 | **Dynamic scaling**: INV63 dynamic sub-node limit based on throughput, max increased from 4 to 8, third division level |

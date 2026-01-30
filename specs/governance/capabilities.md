@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — EpochCapability Immutability
-**Version:** v0.5.3
+**Version:** v0.7.2
 **Status:** Draft
 **Scope:** Specification only (no behavioral changes)
 **Depends on:** epoch.md v0.2, presence.md v0.4
@@ -40,6 +40,7 @@ An epoch's capability declares its feature support:
 | 0 | PresenceOnly | Basic presence tracking |
 | 1 | PresenceWithSignals | Presence + signal emission |
 | 2 | PresenceWithEphemeralData | Full ephemeral data support |
+| 3 | PresenceWithStorage | Ephemeral data + presence-gated vault storage (v0.7.2) |
 
 ### 2.2 Declaration Point
 
@@ -164,7 +165,7 @@ FOR ALL epochs e, times t1 < t2:
 
 ```
 FOR ALL epochs e:
-  capability(e) IN {0, 1, 2}
+  capability(e) IN {0, 1, 2, 3}
 ```
 
 ### 7.3 INV-CAP3: Creation-Time Binding
@@ -231,3 +232,4 @@ This specification is additive:
 | Version | Changes |
 |---------|---------|
 | v0.5.3 | Initial capability immutability specification |
+| v0.7.2 | Added PresenceWithStorage capability for presence-gated vault storage |

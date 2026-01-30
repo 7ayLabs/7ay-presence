@@ -1,9 +1,10 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Boomerang Routing
-**Version:** v0.6.9
+**Version:** v0.7.0
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
 **Depends on:** message-catalog.md v0.6.9, node-model.md v0.6.2, discovery.md v0.6.9
+**RFC:** RFC-0003
 
 ---
 
@@ -297,6 +298,123 @@ Forward: A → B → C
 Return:  A ← B ← C   ✗ (same path reversed)
 ```
 
+### 5.4 Small Network Mode (v0.7.0)
+
+In networks with fewer than the configured threshold of active nodes, path divergence may be impossible. Small network mode provides a fallback that maintains delivery verification while relaxing the divergence requirement.
+
+#### 5.4.1 Configuration
+
+```typescript
+interface SmallNetworkConfig {
+  small_network_threshold: uint8;       // Default: 5
+  allow_same_path_fallback: bool;       // Default: true
+  fallback_verification_level: VerificationLevel;  // Default: Enhanced
+}
+
+enum VerificationLevel {
+  Standard = 0,   // Normal INV30 enforcement
+  Enhanced = 1,   // Same path + validator attestation
+  Maximum = 2     // Same path + 2+ validator attestations
+}
+```
+
+#### 5.4.2 Mode Detection (INV54)
+
+Small network mode is automatically activated when:
+
+```
+smallNetworkMode = activeNodeCount(epoch) < small_network_threshold
+```
+
+The mode is determined at boomerang initiation and persists for the cycle.
+
+#### 5.4.3 Fallback Path Verification (INV55)
+
+When `smallNetworkMode = true` and `allow_same_path_fallback = true`:
+
+```typescript
+function validateSmallNetworkReturn(
+  boomerang: Boomerang,
+  returnPath: Address[]
+): bool {
+  // Same path allowed, but verification level must be elevated
+  const config = getSmallNetworkConfig();
+
+  switch (config.fallback_verification_level) {
+    case VerificationLevel.Enhanced:
+      // Require at least 1 validator attestation
+      return boomerang.validatorAttestations.length >= 1;
+
+    case VerificationLevel.Maximum:
+      // Require at least 2 validator attestations
+      return boomerang.validatorAttestations.length >= 2;
+
+    default:
+      // Standard mode shouldn't reach here in small network
+      return false;
+  }
+}
+```
+
+#### 5.4.4 Validator Attestation
+
+Validators may attest to boomerang path integrity:
+
+```typescript
+interface BoomerangPathAttestation {
+  boomerangId: bytes32;
+  validator: Address;
+  forwardPathHash: bytes32;
+  returnPathHash: bytes32;
+  attestedAt: uint256;
+  signature: bytes;
+}
+```
+
+Attestation confirms:
+- Validator observed both paths
+- Paths match the declared hashes
+- Boomerang completed within timeout
+
+#### 5.4.5 Mode Transparency (INV56)
+
+Small network mode MUST be explicit in BOOMERANG_COMPLETE:
+
+```typescript
+interface BoomerangCompletePayload {
+  // ... existing fields ...
+
+  // v0.7.0 additions
+  smallNetworkMode: bool;              // True if fallback was used
+  verificationLevel: VerificationLevel; // Level used for this boomerang
+  validatorAttestations: bytes[];      // Attestation signatures (if any)
+}
+```
+
+#### 5.4.6 Valid Small Network Examples
+
+**Example 1: 3-node network**
+```
+Forward: A → B → C
+Return:  A ← B ← C   ✓ (same path, Enhanced verification)
+                      (requires 1 validator attestation)
+```
+
+**Example 2: Direct in 2-node network**
+```
+Forward: A → B
+Return:  A ← B       ✓ (direct, Maximum verification)
+                      (requires 2 validator attestations)
+```
+
+#### 5.4.7 Small Network Restrictions
+
+Even in small network mode:
+- Boomerang timeout still applies (INV31)
+- All hops must be signed (INV33)
+- Node presence must be valid
+- Atomicity is preserved (INV32)
+
 ---
 
 ## 6. Verification Chain
@@ -489,14 +607,21 @@ On timeout:
 
 ### 8.1 Boomerang Invariants
 
-**INV30: Path Divergence**
-Return path MUST differ from forward path by at least one intermediate node.
+**INV30: Path Divergence (Updated v0.7.0)**
+Return path MUST differ from forward path, OR small network fallback MUST apply.
 
 ```
 ∀ boomerang:
-  ∃ node:
-    (node ∈ forwardPath.intermediates ∧ node ∉ returnPath.intermediates) ∨
-    (node ∉ forwardPath.intermediates ∧ node ∈ returnPath.intermediates)
+  IF activeNodeCount >= small_network_threshold:
+    ∃ node:
+      (node ∈ forwardPath.intermediates ∧ node ∉ returnPath.intermediates) ∨
+      (node ∉ forwardPath.intermediates ∧ node ∈ returnPath.intermediates)
+  ELSE IF allow_same_path_fallback:
+    smallNetworkMode = true ∧
+    verificationLevel >= Enhanced ∧
+    BOOMERANG_COMPLETE.smallNetworkMode = true
+  ELSE:
+    REJECT boomerang
 ```
 
 **INV31: Boomerang Timeout (Updated v0.6.9)**
@@ -530,6 +655,40 @@ Each hop in boomerang path MUST be signed by the forwarding node.
   verify(hop.signature, hop.forwarder, hop.messageHash) = true
 ```
 
+### 8.2 Small Network Invariants (v0.7.0)
+
+**INV54: Small Network Detection**
+Small network mode MUST activate when active nodes fall below threshold.
+
+```
+∀ epoch e:
+  activeNodeCount(e) < small_network_threshold →
+    smallNetworkMode(e) = true
+```
+
+**INV55: Fallback Path Verification**
+Small network mode MUST use enhanced verification.
+
+```
+∀ boomerang b where smallNetworkMode = true:
+  verificationLevel(b) >= Enhanced ∧
+  count(validatorAttestations) >= requiredAttestations(verificationLevel)
+
+where:
+  requiredAttestations(Enhanced) = 1
+  requiredAttestations(Maximum) = 2
+```
+
+**INV56: Mode Transparency**
+Small network fallback MUST be explicitly indicated in completion.
+
+```
+∀ boomerang b where smallNetworkMode = true:
+  BOOMERANG_COMPLETE(b).smallNetworkMode = true ∧
+  BOOMERANG_COMPLETE(b).verificationLevel is set ∧
+  BOOMERANG_COMPLETE(b).validatorAttestations.length > 0
+```
+
 ---
 
 ## 9. Error Codes
@@ -538,20 +697,28 @@ Each hop in boomerang path MUST be signed by the forwarding node.
 
 | Code | Name | Description |
 |------|------|-------------|
-| BOOM_001 | PathNotDivergent | Return path same as forward path |
+| BOOM_001 | PathNotDivergent | Return path same as forward path (standard mode) |
 | BOOM_002 | BoomerangTimeout | Cycle timeout exceeded |
 | BOOM_003 | InvalidHopSignature | Hop signature verification failed |
 | BOOM_004 | BoomerangAborted | Cycle aborted mid-flight |
 | BOOM_005 | InvalidReturnPath | Return path contains invalid nodes |
+| BOOM_006 | SmallNetworkFallbackDisabled | Same path used but fallback disabled |
+| BOOM_007 | InsufficientAttestations | Not enough validator attestations for level |
+| BOOM_008 | InvalidAttestation | Validator attestation verification failed |
+| BOOM_009 | ModeNotTransparent | Small network mode not indicated in complete |
 
 ### 9.2 Error Priority
 
 ```
-1. PathNotDivergent   → BOOM_001
-2. InvalidReturnPath  → BOOM_005
-3. InvalidHopSignature → BOOM_003
-4. BoomerangTimeout   → BOOM_002
-5. BoomerangAborted   → BOOM_004
+1. SmallNetworkFallbackDisabled → BOOM_006 (if applicable)
+2. PathNotDivergent   → BOOM_001
+3. InvalidReturnPath  → BOOM_005
+4. InsufficientAttestations → BOOM_007
+5. InvalidAttestation → BOOM_008
+6. InvalidHopSignature → BOOM_003
+7. ModeNotTransparent → BOOM_009
+8. BoomerangTimeout   → BOOM_002
+9. BoomerangAborted   → BOOM_004
 ```
 
 ---
@@ -607,8 +774,9 @@ This specification explicitly does NOT define:
 - message-catalog.md v0.6.2 — Message envelope structure
 - node-model.md v0.6.2 — Node capabilities
 - discovery.md v0.6.3 — Node discovery
-- invariants.md v0.6.5 — Protocol invariants INV30-33
-- errors.md v0.6.5 — Error catalog
+- invariants.md v0.7.0 — Protocol invariants INV30-33, INV54-56
+- errors.md v0.7.0 — Error catalog
+- [RFC-0003](../../rfcs/0003-boomerang-small-network.md) — Small Network Fallback
 
 ---
 
@@ -618,3 +786,4 @@ This specification explicitly does NOT define:
 |---------|---------|
 | v0.6.5 | Initial boomerang routing specification |
 | v0.6.9 | **Security hardening**: Configurable timeout (INV31 update), adaptive timeout, validator-approved extensions |
+| v0.7.0 | **Small network mode**: Added small network fallback (RFC-0003), INV54-56, validator attestations, VerificationLevel enum |
