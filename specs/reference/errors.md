@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Errors
-**Version:** v0.6.9 (consolidated from v0.4-v0.6.9)
+**Version:** v0.7.0 (consolidated from v0.4-v0.7.0)
 **Status:** Active
 
-> Includes on-chain errors (v0.4-v0.5) and off-chain semantic layer errors (v0.6-v0.6.9)
+> Includes on-chain errors (v0.4-v0.5, v0.7.0) and off-chain semantic layer errors (v0.6-v0.7.0)
 
 ## Overview
 
@@ -25,10 +25,13 @@ On-chain errors from v0.5 and earlier remain unchanged.
 | Messaging | Off-chain | New in v0.6, Updated v0.6.9 |
 | State Sync | Off-chain | New in v0.6 |
 | Media | Off-chain | New in v0.6.4 |
-| Boomerang | Off-chain | New in v0.6.5 |
-| Autonomous | Off-chain | New in v0.6.6 |
-| Octopus | Off-chain | New in v0.6.7, Updated v0.6.9 |
+| Boomerang | Off-chain | New in v0.6.5, Updated v0.7.0 |
+| Autonomous | Off-chain | New in v0.6.6, Updated v0.7.0 |
+| Octopus | Off-chain | New in v0.6.7, Updated v0.7.0 |
 | Key Management | Off-chain | New in v0.6.9 |
+| Staking | On-chain | New in v0.7.0 (RFC-0001) |
+| Recovery | On-chain | New in v0.7.0 (RFC-0004) |
+| Upgrades | On-chain | New in v0.7.0 (RFC-0004) |
 
 ---
 
@@ -53,7 +56,11 @@ enum ErrorCategory {
   MEDIA = "MEDIA",
   BOOMERANG = "BOOMERANG",
   AUTONOMOUS = "AUTONOMOUS",
-  OCTOPUS = "OCTOPUS"
+  OCTOPUS = "OCTOPUS",
+  KEY_MANAGEMENT = "KEY_MANAGEMENT",
+  STAKING = "STAKING",
+  RECOVERY = "RECOVERY",
+  UPGRADES = "UPGRADES"
 }
 ```
 
@@ -72,19 +79,23 @@ enum ErrorCategory {
 
 ---
 
-## Boomerang Errors (v0.6.5)
+## Boomerang Errors (v0.6.5, Updated v0.7.0)
 
 | Code | Name | Condition | Invariant |
 |------|------|-----------|-----------|
-| BOOM_001 | PathNotDivergent | Return path same as forward path | INV30 |
+| BOOM_001 | PathNotDivergent | Return path same as forward path (standard mode) | INV30 |
 | BOOM_002 | BoomerangTimeout | Cycle timeout exceeded | INV31 |
 | BOOM_003 | InvalidHopSignature | Hop signature verification failed | INV33 |
 | BOOM_004 | BoomerangAborted | Cycle aborted mid-flight | INV32 |
 | BOOM_005 | InvalidReturnPath | Return path contains invalid nodes | INV30 |
+| BOOM_006 | SmallNetworkFallbackDisabled | Same path used but fallback disabled | INV54 |
+| BOOM_007 | InsufficientAttestations | Not enough validator attestations for level | INV55 |
+| BOOM_008 | InvalidAttestation | Validator attestation verification failed | INV55 |
+| BOOM_009 | ModeNotTransparent | Small network mode not indicated in complete | INV56 |
 
 ---
 
-## Autonomous Errors (v0.6.6)
+## Autonomous Errors (v0.6.6, Updated v0.7.0)
 
 | Code | Name | Condition | Invariant |
 |------|------|-----------|-----------|
@@ -94,19 +105,26 @@ enum ErrorCategory {
 | AUTO_004 | IntentExpired | Intent has passed expiration time | INV37 |
 | AUTO_005 | MaxExecutionsReached | Execution count at maximum | - |
 | AUTO_006 | IntentNotFound | Referenced intent does not exist | - |
+| AUTO_010 | InsufficientReputation | Actor reputation below tier minimum | INV50 |
+| AUTO_011 | CooldownActive | Actor in cooldown from rejection | INV53 |
+| AUTO_012 | TierThresholdNotMet | Execution exceeds tier threshold | INV52 |
+| AUTO_013 | ReputationUpdateFailed | Failed to update reputation score | INV51 |
 
 ---
 
-## Octopus Errors (v0.6.7)
+## Octopus Errors (v0.6.7, Updated v0.7.0)
 
 | Code | Name | Condition | Invariant |
 |------|------|-----------|-----------|
 | OCTO_001 | BelowActivationThreshold | Division requested below 45% | INV38 |
-| OCTO_002 | SubNodeLimitReached | Already at 4 sub-nodes | INV40 |
+| OCTO_002 | SubNodeLimitReached | Already at dynamic max for throughput | INV40, INV63 |
 | OCTO_003 | InvalidSubNodeId | Sub-node ID doesn't match derivation | INV39 |
 | OCTO_004 | HysteresisNotMet | Merge requested before sustained low | INV42 |
 | OCTO_005 | StateReconciliationFailed | Missing sub-node states for merge | INV41 |
 | OCTO_006 | InvalidDivisionState | Cannot divide/merge in current state | - |
+| OCTO_007 | InvalidVRFProof | VRF proof verification failed | INV39 |
+| OCTO_008 | ExceedsDynamicLimit | Requested sub-nodes exceeds calculated limit | INV63 |
+| OCTO_009 | AbsoluteMaxExceeded | Cannot exceed 8 sub-nodes (hard cap) | INV63 |
 
 ### OCTO_001: BelowActivationThreshold
 ```typescript
@@ -127,10 +145,12 @@ enum ErrorCategory {
 {
   code: "OCTO_002",
   category: "OCTOPUS",
-  message: "Cannot create more sub-nodes, limit of 4 reached",
+  message: "Cannot create more sub-nodes, dynamic limit reached",
   context: {
     parentNode: "0x1234...",
-    currentSubNodes: 4
+    currentSubNodes: 4,
+    dynamicLimit: 4,
+    throughputPercent: 85
   }
 }
 ```
@@ -291,6 +311,132 @@ enum ErrorCategory {
 
 ---
 
+## Staking Errors (v0.7.0)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| STK_001 | InsufficientStake | Stake below minimum requirement | INV46 |
+| STK_002 | StakeConcentrationExceeded | Stake exceeds 33% of total | INV47 |
+| STK_003 | CooldownActive | Stake reduction cooldown not complete | - |
+| STK_004 | InvalidSlashAmount | Slash exceeds maximum for violation type | INV48 |
+| STK_005 | EvidenceRewardExceeded | Evidence reward exceeds cap | INV49 |
+| STK_006 | NotValidator | Account is not an active validator | - |
+| STK_007 | MinimumValidatorCount | Would reduce validators below minimum | INV46 |
+
+### STK_001: InsufficientStake
+```typescript
+{
+  code: "STK_001",
+  category: "STAKING",
+  message: "Stake amount below minimum requirement",
+  context: {
+    validator: "0x1234...",
+    stakeAmount: 5000,
+    minimumRequired: 10000
+  }
+}
+```
+
+### STK_002: StakeConcentrationExceeded
+```typescript
+{
+  code: "STK_002",
+  category: "STAKING",
+  message: "Stake would exceed 33% concentration limit",
+  context: {
+    validator: "0x1234...",
+    proposedStake: 50000,
+    totalStake: 100000,
+    maxAllowed: 33000
+  }
+}
+```
+
+---
+
+## Recovery Errors (v0.7.0)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| REC_001 | NotSuspended | Validator not in Suspended status | INV57 |
+| REC_002 | ProposalExists | Recovery already in progress | - |
+| REC_003 | VotingExpired | Voting period has ended | - |
+| REC_004 | NotValidator | Caller is not active validator | - |
+| REC_005 | AlreadyVoted | Validator already voted on this recovery | - |
+| REC_006 | CooldownActive | Recovery cooldown not complete | INV58 |
+
+### REC_001: NotSuspended
+```typescript
+{
+  code: "REC_001",
+  category: "RECOVERY",
+  message: "Validator must be in Suspended status to initiate recovery",
+  context: {
+    validator: "0x1234...",
+    currentStatus: "Active"
+  }
+}
+```
+
+### REC_006: CooldownActive
+```typescript
+{
+  code: "REC_006",
+  category: "RECOVERY",
+  message: "Recovery cooldown period not complete",
+  context: {
+    validator: "0x1234...",
+    cooldownUntil: 1705604800,
+    currentTime: 1705500000
+  }
+}
+```
+
+---
+
+## Upgrade Errors (v0.7.0)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| UPG_001 | NotFound | Upgrade ID not found | - |
+| UPG_002 | NotApproved | Upgrade not yet approved | - |
+| UPG_003 | DelayNotElapsed | Upgrade delay not complete | INV59 |
+| UPG_004 | MissingDisclosure | Emergency upgrade requires disclosure | INV60 |
+| UPG_005 | NotValidator | Caller not active validator | - |
+| UPG_006 | AlreadyVoted | Duplicate vote | - |
+| UPG_007 | VotingClosed | Voting period ended | - |
+
+### UPG_003: DelayNotElapsed
+```typescript
+{
+  code: "UPG_003",
+  category: "UPGRADES",
+  message: "Upgrade delay period not complete",
+  context: {
+    upgradeId: 5,
+    upgradeType: "Protocol",
+    proposedAt: 1705000000,
+    effectiveAt: 1705604800,
+    currentTime: 1705300000
+  }
+}
+```
+
+### UPG_004: MissingDisclosure
+```typescript
+{
+  code: "UPG_004",
+  category: "UPGRADES",
+  message: "Emergency upgrades require security disclosure",
+  context: {
+    upgradeId: 6,
+    upgradeType: "Emergency"
+  }
+}
+```
+
+---
+
 ## Recovery Actions
 
 | Error Category | Recovery |
@@ -300,10 +446,13 @@ enum ErrorCategory {
 | MSG_* | Reject message, log; for MSG_009/010 reject immediately |
 | SYNC_* | Force complete sync |
 | MEDIA_* | Reject media, notify sender |
-| BOOM_* | Retry with new boomerangId |
-| AUTO_* | Revoke intent, re-declare if needed |
+| BOOM_* | Retry with new boomerangId; use fallback if small network |
+| AUTO_* | Wait for cooldown, improve reputation, re-declare if needed |
 | OCTO_* | Wait for threshold, retry division/merge |
 | KEY_* | Wait for epoch transition or contact validators |
+| STK_* | Adjust stake amount, wait for cooldown |
+| REC_* | Wait for voting, ensure proper status |
+| UPG_* | Wait for delay, ensure proper quorum |
 
 ---
 
@@ -317,3 +466,4 @@ enum ErrorCategory {
 | v0.6.6 | Added AUTO_001-006 for autonomous transactions |
 | v0.6.7 | Added OCTO_001-006 for octopus scaling |
 | v0.6.9 | **Security hardening**: Added MSG_009-010 (chain binding), DISC_010-011 (rate limiting), KEY_001-004 (key management), OCTO_007 (VRF verification) |
+| v0.7.0 | **Production readiness**: Added STK_001-007 (staking), REC_001-006 (recovery), UPG_001-007 (upgrades), AUTO_010-013 (reputation), BOOM_006-009 (small network), OCTO_008-009 (dynamic scaling) |

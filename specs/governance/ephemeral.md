@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Ephemeral Data Governance
-**Version:** v0.6.9 (consolidated from v0.5, security hardening)
+**Version:** v0.7.0 (consolidated from v0.5, security hardening, trust model)
 **Status:** Active
 **Scope:** Protocol-level (canonical)
 **Depends on:** epochs.md, presence.md, validators.md
@@ -368,7 +368,134 @@ destruction within the destruction window.
 
 ---
 
-## 8. Functions
+## 8. Trust Model (v0.7.0)
+
+This section explicitly documents what the ephemeral data system can and cannot
+guarantee from a security perspective.
+
+### 8.1 Cryptographic Guarantees (Strong)
+
+The following guarantees are mathematically enforced:
+
+**Key destruction makes data cryptographically inaccessible**
+- Once 3+ key shares are destroyed, the epoch key cannot be reconstructed
+- Shamir Secret Sharing with 3-of-5 threshold is information-theoretically secure
+- Without the key, encrypted ephemeral data is computationally infeasible to decrypt
+
+**Forward secrecy between epochs**
+- HKDF derivation ensures each epoch has a unique, independent key
+- Compromising one epoch's key does not reveal other epochs' keys
+- Past epochs remain protected even if future keys are compromised
+
+**Validator attestations are cryptographically verifiable**
+- Each destruction attestation is signed by the validator's key
+- Signatures are publicly verifiable
+- Validators cannot deny their attestations
+
+### 8.2 Physical Limitations (Acknowledged)
+
+The protocol acknowledges these limitations that are inherent to computer systems:
+
+**RAM retention after key destruction**
+- Key material may persist in physical memory after `secure_zero()` is called
+- Cold boot attacks could theoretically recover key material
+- CPU caches and registers may retain key fragments
+
+**Validator collusion risk**
+- 3 or more validators could collude to retain key shares
+- Colluding validators could reconstruct keys after destruction attestation
+- The protocol relies on validator honesty for true destruction
+
+**Network observation**
+- Ephemeral data in transit may be observed by network intermediaries
+- Encryption protects content but metadata (timing, size) is observable
+- Historical traffic analysis could reveal patterns
+
+**Client-side copies**
+- Users may screenshot, copy, or export ephemeral data before destruction
+- The protocol cannot prevent human-level data exfiltration
+- Application-layer controls are outside protocol scope
+
+### 8.3 What Validators CAN Guarantee
+
+Validators can cryptographically attest to:
+
+| Guarantee | Verification |
+|-----------|--------------|
+| Key share was zeroed in memory | Signed attestation with timestamp |
+| Attestation was timely | Within destruction window |
+| Threshold was reached | 3+ attestations on-chain |
+| Key reconstruction impossible | Shamir 3-of-5 math |
+
+### 8.4 What Validators CANNOT Guarantee
+
+Validators CANNOT guarantee:
+
+| Limitation | Reason |
+|------------|--------|
+| Physical memory scrubbing | Hardware-level operation |
+| No copies were made | Validator could retain before zeroing |
+| No third-party observers | Network is public |
+| Data was never intercepted | End-to-end encryption is separate |
+| Client compliance | Outside protocol scope |
+
+### 8.5 Trust Assumptions
+
+The ephemeral data system operates under these trust assumptions:
+
+**Honest majority assumption**
+- At least 3 of 5 validators are honest
+- Honest validators genuinely destroy key shares
+- Colluding minority cannot reconstruct keys
+
+**Secure key generation**
+- Master secret has sufficient entropy
+- HKDF implementation is correct
+- VRF (if used) provides genuine randomness
+
+**Correct implementation**
+- `secure_zero()` is properly implemented
+- Memory barriers function correctly
+- No side-channel leakage in key operations
+
+### 8.6 Recommendations for Maximum Security
+
+For applications requiring maximum security, combine protocol guarantees with:
+
+**Hardware Security Modules (HSM)**
+- Store key shares in tamper-resistant hardware
+- Hardware-enforced key destruction
+- Side-channel resistant operations
+
+**Secure Enclaves (SGX/TrustZone)**
+- Process ephemeral data in isolated execution environments
+- Memory encryption prevents cold boot attacks
+- Attestation of enclave integrity
+
+**End-to-End Encryption**
+- Encrypt data at application layer before protocol encryption
+- Sender and recipient keys, not epoch keys
+- Protocol layer provides transport security
+
+**Network Privacy**
+- Use onion routing or mix networks for message transport
+- Minimize metadata leakage
+- Consider timing attack mitigations
+
+### 8.7 Security Classification
+
+| Security Level | Achievable With |
+|----------------|-----------------|
+| **Basic** | Protocol defaults (key destruction, attestations) |
+| **Enhanced** | + End-to-end encryption + trusted validator set |
+| **Maximum** | + HSM + Secure enclaves + network privacy |
+
+The protocol provides **Basic** security by default. Applications requiring
+higher security levels should implement additional layers as documented.
+
+---
+
+## 9. Functions
 
 ### 8.1 Epoch Creation (v0.5)
 
@@ -407,7 +534,7 @@ Rules:
 
 ---
 
-## 9. Events
+## 10. Events
 
 ### 9.1 EpochCreatedV2
 
@@ -455,7 +582,7 @@ pub struct EpochKeyDestroyed {
 
 ---
 
-## 10. Errors
+## 11. Errors
 
 ### 10.1 InvalidCapability
 
@@ -491,7 +618,7 @@ InvalidDestructionAttestation { validator: AccountId }
 
 ---
 
-## 11. Invariants
+## 12. Invariants
 
 The following invariants MUST NEVER be violated:
 
@@ -541,7 +668,7 @@ All invariants from v0.4 remain in effect.
 
 ---
 
-## 12. Storage
+## 13. Storage
 
 ### 12.1 On-Chain Storage
 
@@ -563,7 +690,7 @@ mappings to maintain ABI compatibility with v0.4 clients.
 
 ---
 
-## 13. Explicit Non-Goals
+## 14. Explicit Non-Goals
 
 This version explicitly does NOT:
 
@@ -578,7 +705,7 @@ Any such mechanisms exist outside the protocol scope.
 
 ---
 
-## 14. Backwards Compatibility
+## 15. Backwards Compatibility
 
 | Aspect | Approach |
 |--------|----------|
@@ -590,7 +717,7 @@ Any such mechanisms exist outside the protocol scope.
 
 ---
 
-## 15. Configuration
+## 16. Configuration
 
 | Parameter | Default | Range | Mutable |
 |-----------|---------|-------|---------|
@@ -599,7 +726,7 @@ Any such mechanisms exist outside the protocol scope.
 
 ---
 
-## 16. Compliance
+## 17. Compliance
 
 An implementation is considered compliant if and only if:
 - All v0.4 invariants (1-13) hold
@@ -610,16 +737,17 @@ An implementation is considered compliant if and only if:
 
 ---
 
-## 17. Versioning
+## 18. Versioning
 
 | Version | Changes |
 |---------|---------|
 | v0.5 | Ephemeral Data Governance Layer |
 | v0.6.9 | **Security hardening**: Epoch key management, HKDF derivation, Shamir distribution, destruction attestation (INV44) |
+| v0.7.0 | **Trust model documentation**: Explicit trust assumptions, security limitations, recommendations for maximum security |
 
 ---
 
-## 18. References
+## 19. References
 
 - epoch.md v0.2 — Epoch specification
 - presence.md v0.4 — Presence specification
@@ -628,7 +756,7 @@ An implementation is considered compliant if and only if:
 
 ---
 
-## 19. Closing Statement
+## 20. Closing Statement
 
 > The 7ay Presence Protocol does not transmit or store data.
 > It defines the conditions under which data may temporarily exist.

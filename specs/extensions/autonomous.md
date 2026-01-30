@@ -1,9 +1,10 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Autonomous Transactions
-**Version:** v0.6.6
+**Version:** v0.7.0
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** message-catalog.md v0.6.2, node-model.md v0.6.2, validator.md v0.4
+**Depends on:** message-catalog.md v0.6.9, node-model.md v0.6.2, validators.md v0.7.0
+**RFC:** RFC-0002
 
 ---
 
@@ -313,25 +314,113 @@ enum RevokeReason {
 
 ## 5. Pattern Recognition
 
-### 5.1 Pattern Threshold (INV35)
+### 5.1 Pattern Threshold (INV35 — Updated v0.7.0)
 
-Autonomous execution requires minimum pattern frequency:
+Autonomous execution requires minimum pattern frequency based on actor reputation:
 
 ```
-∀ intent:
+∀ intent from actor a:
   intent.state = Eligible →
-    observedFrequency(intent.actor, intent.actionType) >= patternThreshold
+    observedFrequency(a, intent.actionType) >= tierThreshold(reputation(a))
 ```
 
-### 5.2 Default Thresholds
+### 5.2 Reputation Score (v0.7.0 — RFC-0002)
 
-| Pattern Type | Default Threshold | Description |
-|--------------|-------------------|-------------|
-| FREQUENCY | 5 per hour | Minimum 5 actions in 1 hour |
-| PERIODIC | 3 consecutive | 3 regular interval actions |
-| CONDITIONAL | 2 triggers | 2 condition-triggered actions |
+Each actor has an epoch-scoped reputation score:
 
-### 5.3 Pattern Evidence
+```typescript
+interface ReputationScore {
+  actor: Address;
+  epochId: uint256;
+  score: uint8;                    // 0-100, starts at 50
+  successfulExecutions: uint32;
+  rejections: uint32;
+  consecutiveRejections: uint8;
+  cooldownUntil: uint64;
+  lastActivity: uint64;
+}
+```
+
+**Score Changes:**
+
+| Event | Change | Notes |
+|-------|--------|-------|
+| Successful execution | +1 | Capped at 100 |
+| Rejection | -5 | Minimum 0 |
+| Revocation | -10 | Actor-initiated |
+| Cooldown violation | -20 | Severe penalty |
+| Validator finalization | +2 | Bonus |
+
+### 5.3 Progressive Tiers (v0.7.0 — INV52)
+
+| Tier | Score Range | Threshold | Cooldown Multiplier |
+|------|-------------|-----------|---------------------|
+| Restricted | 0-30 | 5/hour | 2x |
+| Basic | 31-60 | 20/hour | 1x |
+| Enhanced | 61-90 | 50/hour | 0.5x |
+| Trusted | 91-100 | 100/hour | 0.25x |
+
+```typescript
+function getTier(score: uint8): Tier {
+  if (score <= 30) return Tier.Restricted;
+  if (score <= 60) return Tier.Basic;
+  if (score <= 90) return Tier.Enhanced;
+  return Tier.Trusted;
+}
+
+function getThreshold(tier: Tier): uint32 {
+  switch (tier) {
+    case Tier.Restricted: return 5;
+    case Tier.Basic: return 20;
+    case Tier.Enhanced: return 50;
+    case Tier.Trusted: return 100;
+  }
+}
+```
+
+### 5.4 Cooldown Mechanism (v0.7.0 — INV53)
+
+Rejections trigger exponential backoff cooldown:
+
+```typescript
+function calculateCooldown(consecutiveRejections: uint8): uint64 {
+  if (consecutiveRejections == 0) return 0;
+
+  const base = 60;  // 1 minute
+  const multiplier = Math.pow(2, consecutiveRejections - 1);
+  return Math.min(base * multiplier, 86400);  // Max 24 hours
+}
+
+// With tier multiplier
+function applyTierMultiplier(cooldown: uint64, tier: Tier): uint64 {
+  switch (tier) {
+    case Tier.Restricted: return cooldown * 2;
+    case Tier.Basic: return cooldown;
+    case Tier.Enhanced: return cooldown / 2;
+    case Tier.Trusted: return cooldown / 4;
+  }
+}
+```
+
+**Cooldown Examples:**
+
+| Consecutive Rejections | Base Cooldown | Restricted | Basic | Enhanced | Trusted |
+|------------------------|---------------|------------|-------|----------|---------|
+| 1 | 1 min | 2 min | 1 min | 30 sec | 15 sec |
+| 2 | 2 min | 4 min | 2 min | 1 min | 30 sec |
+| 3 | 4 min | 8 min | 4 min | 2 min | 1 min |
+| 5 | 16 min | 32 min | 16 min | 8 min | 4 min |
+| 10+ | 24 hours | 24 hours | 24 hours | 12 hours | 6 hours |
+
+### 5.5 Pattern Thresholds by Type
+
+| Pattern Type | Restricted | Basic | Enhanced | Trusted |
+|--------------|------------|-------|----------|---------|
+| FREQUENCY | 5/hour | 20/hour | 50/hour | 100/hour |
+| PERIODIC | 3 consec. | 5 consec. | 10 consec. | 20 consec. |
+| CONDITIONAL | 2 triggers | 5 triggers | 10 triggers | 20 triggers |
+
+### 5.6 Pattern Evidence
 
 Validators track pattern evidence:
 
@@ -342,6 +431,7 @@ interface PatternEvidence {
   observations: Observation[];
   threshold: uint256;
   thresholdMetAt?: uint256;
+  reputation: ReputationScore;  // v0.7.0
 }
 
 interface Observation {
@@ -472,13 +562,13 @@ Intent declaration requires Validated or Finalized presence.
   presenceState(intent.actor, intent.epochId) ∈ {Validated, Finalized}
 ```
 
-**INV35: Pattern Threshold**
-Autonomous execution requires minimum pattern frequency.
+**INV35: Pattern Threshold (Updated v0.7.0)**
+Autonomous execution requires minimum pattern frequency based on reputation tier.
 
 ```
-∀ execution:
+∀ execution from actor a:
   execution.state = Eligible →
-    patternFrequency(execution.actor, execution.actionType) >= threshold
+    patternFrequency(a, execution.actionType) >= tierThreshold(reputation(a))
 ```
 
 **INV36: Validator Finalization**
@@ -499,6 +589,41 @@ Autonomous authorizations do not persist across epochs.
     intent.state = Revoked
 ```
 
+### 9.2 Reputation Invariants (v0.7.0 — RFC-0002)
+
+**INV50: Reputation Range**
+Reputation scores are bounded 0-100.
+
+```
+∀ actor a:
+  0 <= reputation(a).score <= 100
+```
+
+**INV51: Reputation Impact**
+Rejections decrease reputation by 5 (minimum 0).
+
+```
+∀ rejection_event(actor):
+  reputation'(actor) = max(0, reputation(actor) - 5)
+```
+
+**INV52: Progressive Threshold**
+Thresholds scale with reputation tier.
+
+```
+∀ intent i from actor a:
+  requiredThreshold(i) = tierThreshold(getTier(reputation(a)))
+```
+
+**INV53: Cooldown Enforcement**
+Cooldown violations incur severe reputation penalty.
+
+```
+∀ action during cooldown(actor):
+  action is REJECTED ∧
+  reputation'(actor) = max(0, reputation(actor) - 20)
+```
+
 ---
 
 ## 10. Error Codes
@@ -513,16 +638,24 @@ Autonomous authorizations do not persist across epochs.
 | AUTO_004 | ExecutionLimitReached | Max executions exceeded |
 | AUTO_005 | FinalizationFailed | Quorum not reached |
 | AUTO_006 | IntentRevoked | Intent already revoked |
+| AUTO_010 | CooldownActive | Action attempted during cooldown (v0.7.0) |
+| AUTO_011 | ThresholdExceeded | Intent exceeds tier threshold (v0.7.0) |
+| AUTO_012 | HourlyLimitExceeded | Hourly intent count exceeded (v0.7.0) |
+| AUTO_013 | ReputationTooLow | Action requires higher reputation (v0.7.0) |
 
 ### 10.2 Error Priority
 
 ```
-1. InsufficientPresence → AUTO_001
-2. IntentRevoked        → AUTO_006
-3. IntentExpired        → AUTO_003
-4. PatternNotMet        → AUTO_002
-5. ExecutionLimitReached → AUTO_004
-6. FinalizationFailed   → AUTO_005
+1. InsufficientPresence  → AUTO_001
+2. CooldownActive        → AUTO_010
+3. IntentRevoked         → AUTO_006
+4. IntentExpired         → AUTO_003
+5. ReputationTooLow      → AUTO_013
+6. ThresholdExceeded     → AUTO_011
+7. HourlyLimitExceeded   → AUTO_012
+8. PatternNotMet         → AUTO_002
+9. ExecutionLimitReached → AUTO_004
+10. FinalizationFailed   → AUTO_005
 ```
 
 ---
@@ -590,3 +723,4 @@ This specification explicitly does NOT define:
 | Version | Changes |
 |---------|---------|
 | v0.6.6 | Initial autonomous transactions specification |
+| v0.7.0 | **Hardening (RFC-0002)**: Progressive thresholds, reputation scoring (INV50-53), cooldown mechanism |
