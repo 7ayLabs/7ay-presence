@@ -1,7 +1,7 @@
 # 7ay Presence Protocol
 
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](https://mariadb.com/bsl11/)
-[![Version](https://img.shields.io/badge/Version-0.7.3-green.svg)](specs/README.md)
+[![Version](https://img.shields.io/badge/Version-0.7.4-green.svg)](specs/README.md)
 
 Canonical specification for the 7ay Proof of Presence (PoP) Protocol.
 
@@ -9,7 +9,7 @@ This repository contains protocol specifications, governance processes, and refe
 
 ## Current Version
 
-**v0.7.3** — Cryptographic Layer for Presence-Based Storage
+**v0.7.4** — Storage Layer for Presence-Based Vaults
 
 | Layer | Versions | Scope |
 |-------|----------|-------|
@@ -17,7 +17,7 @@ This repository contains protocol specifications, governance processes, and refe
 | Epoch | v0.2 | Lifecycle, temporal boundaries |
 | Governance | v0.5, v0.6.9, v0.7.0 | Ephemeral data, capabilities, policies, key management, trust model |
 | Semantic | v0.6.0-0.3, v0.6.9 | Node discovery, messaging, state sync, rate limiting |
-| Extensions | v0.6.4-v0.7.3 | Media, boomerang, autonomous, octopus, dynamic scaling, devices, vaults, ZK proofs, crypto |
+| Extensions | v0.6.4-v0.7.4 | Media, boomerang, autonomous, octopus, devices, vaults, ZK proofs, crypto, storage |
 | Security | v0.6.9, v0.7.0 | Chain binding, key destruction, rate limiting |
 | Economics | v0.7.0 | Validator staking, slashing, stake concentration |
 | Recovery | v0.7.0 | Validator recovery, protocol upgrades |
@@ -50,7 +50,7 @@ This repository contains protocol specifications, governance processes, and refe
 | Document | Scope |
 |----------|-------|
 | [node-model.md](specs/semantic/node-model.md) | Logical node structure |
-| [message-catalog.md](specs/semantic/message-catalog.md) | Protocol message types (0x01-0x65) |
+| [message-catalog.md](specs/semantic/message-catalog.md) | Protocol message types (0x01-0x7F) |
 | [discovery.md](specs/semantic/discovery.md) | Node discovery semantics |
 | [state-sync.md](specs/semantic/state-sync.md) | State synchronization |
 
@@ -66,6 +66,7 @@ This repository contains protocol specifications, governance processes, and refe
 | [vaults.md](specs/extensions/vaults.md) | v0.7.2 | Presence-gated vaults, device rings, threshold access |
 | [zk-proofs.md](specs/extensions/zk-proofs.md) | v0.7.2 | Zero-knowledge circuits for anonymous vault operations |
 | [crypto.md](specs/extensions/crypto.md) | v0.7.3 | Shamir Secret Sharing, ECIES encryption, key reconstruction |
+| [storage.md](specs/extensions/storage.md) | v0.7.4 | Storage operations, AES-256-GCM encryption, data integrity |
 
 ### Reference
 
@@ -74,7 +75,7 @@ This repository contains protocol specifications, governance processes, and refe
 | [overview.md](specs/reference/overview.md) | Protocol vision and architecture |
 | [model.md](specs/reference/model.md) | Core protocol model |
 | [state-machine.md](specs/reference/state-machine.md) | Unified state transitions |
-| [invariants.md](specs/reference/invariants.md) | Protocol invariants (INV1-63) |
+| [invariants.md](specs/reference/invariants.md) | Protocol invariants (INV1-75) |
 | [errors.md](specs/reference/errors.md) | Error catalog |
 | [substrate.md](specs/reference/substrate.md) | Substrate implementation notes |
 
@@ -90,7 +91,7 @@ This repository contains protocol specifications, governance processes, and refe
 
 ## Protocol Invariants
 
-The protocol defines 76 invariants across sixteen categories:
+The protocol defines 79 invariants across seventeen categories:
 
 | Category | Range | Scope |
 |----------|-------|-------|
@@ -109,6 +110,7 @@ The protocol defines 76 invariants across sixteen categories:
 | Device | INV64-65 | Device identity derivation, presence binding |
 | Vault | INV66-68 | Device ring integrity, access threshold, key isolation |
 | Cryptographic | INV69 | Share distribution validity |
+| Storage | INV70-72 | Epoch binding, access control, data integrity |
 | Zero-Knowledge | INV73-75 | ZK share proof, presence proof, access proof |
 
 ## Implementation

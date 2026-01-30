@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.7.3
+**Version:** v0.7.4
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.9
+**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.7.4
 
 ---
 
@@ -867,96 +867,315 @@ enum LockReason {
 ### 7.5 STORAGE_PUT (0x79)
 
 Store encrypted item in vault.
+See `storage.md` for complete storage specification and key derivation.
 
 ```typescript
 interface StoragePutPayload {
+  // Vault context
   vaultId: bytes32;
-  itemId: bytes32;              // Derived from content hash
-  encryptedContent: bytes;      // AES-256-GCM encrypted
-  contentHash: bytes32;         // Hash of plaintext for integrity
-  mediaType: string;            // MIME type
+  keyVersion: uint256;          // Must match vault's current key version
+
+  // Item identity (INV70: epoch binding)
+  itemId: bytes32;              // keccak256(vaultId, keyVersion, contentHash, createdAt)
+
+  // Encrypted content (AES-256-GCM)
+  encryptedContent: bytes;      // Encrypted with derived item key
+  iv: bytes;                    // 12 bytes (GCM nonce, random per item)
+  authTag: bytes;               // 16 bytes (GCM authentication tag)
+
+  // Integrity verification (INV72)
+  contentHash: bytes32;         // keccak256 of plaintext (for integrity)
+  contentSize: uint256;         // Original plaintext size in bytes
+
+  // Metadata
   metadata: ItemMetadata;
-  accessProof?: ZKAccessProof;  // If required by policy
+
+  // ZK proof (if required by policy)
+  accessProof?: ZKAccessProof;
+
+  // Authorization
+  deviceId: bytes32;
   deviceSignature: bytes;
 }
 
 interface ItemMetadata {
-  name?: string;
-  size: uint256;
-  createdAt: uint256;
-  tags?: string[];
+  name: string;                 // Display name (max 256 UTF-8 chars)
+  description?: string;         // Optional description (max 1024 chars)
+  mediaType: string;            // MIME type (e.g., "image/png", "application/pdf")
+  tags?: string[];              // Organizational tags (max 10 tags, 32 chars each)
+  folder?: string;              // Virtual folder path
+  createdAt: uint256;           // Unix timestamp
+  customFields?: Map<string, string>; // User-defined key-value pairs
 }
 ```
 
-**Validation Rules:**
+**Key Derivation (from crypto.md):**
+```
+itemKey = hkdf_sha256(
+  vaultKey,                     // Reconstructed vault key
+  keccak256(itemId),            // Item-specific salt
+  "7ay-item-key-v1"             // Context string
+)
+```
+
+**Encryption Process:**
+```
+1. Generate random 12-byte IV
+2. Derive itemKey from vaultKey
+3. encryptedContent = AES-256-GCM.encrypt(plaintext, itemKey, iv)
+4. authTag = GCM authentication tag (16 bytes)
+5. contentHash = keccak256(plaintext)
+```
+
+**Validation Rules (INV71: Access Control):**
 - Vault MUST be Unlocked
-- Device MUST be Present and in vault ring
-- Item size MUST be within policy limits
-- Media type MUST be in allowed types
+- Device MUST be Present in current epoch
+- Device MUST be in vault's device ring
+- `keyVersion` MUST match vault's current key version
+- `contentSize` MUST be <= policy.maxItemSize
+- `mediaType` MUST be in policy.allowedMediaTypes
+- Storage quota: `vault.storageUsed + contentSize <= vault.storageQuota`
+- `itemId` MUST be correctly derived
+- `authTag` MUST be exactly 16 bytes
+- `iv` MUST be exactly 12 bytes
 
 ### 7.6 STORAGE_GET (0x7A)
 
 Retrieve encrypted item from vault.
+See `storage.md` for decryption and integrity verification.
 
 ```typescript
 interface StorageGetPayload {
+  // Request
   vaultId: bytes32;
   itemId: bytes32;
+
+  // ZK proof (if required by policy)
   accessProof?: ZKAccessProof;
+
+  // Authorization
+  deviceId: bytes32;
   deviceSignature: bytes;
+}
+
+interface StorageGetResponse {
+  // Item identity
+  itemId: bytes32;
+  vaultId: bytes32;
+  keyVersion: uint256;
+
+  // Encrypted content
+  encryptedContent: bytes;
+  iv: bytes;                    // 12 bytes
+  authTag: bytes;               // 16 bytes
+
+  // Integrity data (INV72)
+  contentHash: bytes32;
+  contentSize: uint256;
+
+  // Metadata
+  metadata: ItemMetadata;
+
+  // State
+  state: ItemState;
+  createdAt: uint256;
+  updatedAt?: uint256;
+
+  // Re-encryption indicator
+  requiresReencryption: bool;   // true if keyVersion < vault.vaultKeyVersion
+}
+
+enum ItemState {
+  Active = 0,                   // Normal state, accessible
+  Archived = 1,                 // Hidden from listings, still accessible
+  PendingDelete = 2,            // Marked for deletion
+  PendingReencryption = 3       // Needs re-encryption with new key
 }
 ```
 
-**Validation Rules:**
+**Decryption Process (client-side):**
+```
+1. Reconstruct vaultKey (requires threshold shares)
+2. Derive itemKey = hkdf_sha256(vaultKey, keccak256(itemId), "7ay-item-key-v1")
+3. plaintext = AES-256-GCM.decrypt(encryptedContent, itemKey, iv, authTag)
+4. Verify: keccak256(plaintext) == contentHash (INV72)
+5. If mismatch: reject (integrity violation)
+```
+
+**Validation Rules (INV71: Access Control):**
 - Vault MUST be Unlocked
-- Device MUST be Present and in vault ring
-- Item MUST exist
+- Device MUST be Present in current epoch
+- Device MUST be in vault's device ring
+- Item MUST exist and state ∈ {Active, Archived, PendingReencryption}
+- If `requiresReencryption`: client SHOULD re-encrypt with current key
 
 ### 7.7 STORAGE_DELETE (0x7B)
 
-Delete stored item.
+Delete stored item from vault.
+See `storage.md` for deletion states and secure erasure.
 
 ```typescript
 interface StorageDeletePayload {
+  // Target
   vaultId: bytes32;
   itemId: bytes32;
-  ownerSignature: bytes;        // Owner required for deletion
+
+  // Delete options
+  deleteType: DeleteType;
+  reason?: string;              // Optional audit trail (max 256 chars)
+
+  // Authorization (owner required)
+  ownerSignature: bytes;
+}
+
+enum DeleteType {
+  Soft = 0,                     // Mark as PendingDelete, recoverable
+  Hard = 1,                     // Immediate permanent deletion
+  Secure = 2                    // Hard delete + secure memory wipe
+}
+
+interface StorageDeleteResponse {
+  itemId: bytes32;
+  previousState: ItemState;
+  newState: ItemState;
+  freedBytes: uint256;
+  deletedAt: uint256;
+  recoverable: bool;            // true if soft delete
+  recoveryDeadline?: uint256;   // Unix timestamp for soft delete expiry
 }
 ```
 
-**Validation Rules:**
+**Delete Behavior:**
+- **Soft (0)**: `item.state → PendingDelete`, recoverable within grace period (default 7 days)
+- **Hard (1)**: Immediate removal, `vault.storageUsed -= item.contentSize`
+- **Secure (2)**: Hard delete + `secureZero(encryptedContent)` attestation
+
+**Validation Rules (INV71: Access Control):**
 - Vault MUST be Unlocked
 - Owner signature MUST be valid
-- Item MUST exist
+- Item MUST exist and state ∈ {Active, Archived, PendingDelete}
+- For Secure delete: SHOULD generate secure erasure attestation
 
 ### 7.8 STORAGE_LIST (0x7C)
 
-List stored items (metadata only).
+List stored items (metadata only, no encrypted content).
+See `storage.md` for storage model.
 
 ```typescript
 interface StorageListPayload {
+  // Vault context
   vaultId: bytes32;
+
+  // Filtering
   filter?: ItemFilter;
+
+  // Sorting
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
+
+  // Pagination
   pagination?: Pagination;
+
+  // Authorization
+  deviceId: bytes32;
   deviceSignature: bytes;
 }
 
 interface ItemFilter {
-  mediaType?: string;
-  tags?: string[];
-  createdAfter?: uint256;
+  // Content filtering
+  mediaType?: string;           // Filter by MIME type (exact or prefix, e.g., "image/")
+  mediaTypes?: string[];        // Filter by multiple MIME types
+  tags?: string[];              // Filter by tags (AND logic)
+  tagsAny?: string[];           // Filter by tags (OR logic)
+  folder?: string;              // Filter by virtual folder
+
+  // State filtering
+  states?: ItemState[];         // Filter by states (default: [Active])
+  includeArchived?: bool;       // Include Archived items
+
+  // Temporal filtering
+  createdAfter?: uint256;       // Unix timestamp
   createdBefore?: uint256;
+  updatedAfter?: uint256;
+  updatedBefore?: uint256;
+
+  // Size filtering
+  minSize?: uint256;            // Bytes
+  maxSize?: uint256;
+
+  // Search
+  nameContains?: string;        // Case-insensitive name search
+}
+
+enum SortField {
+  CreatedAt = 0,                // Default
+  UpdatedAt = 1,
+  Name = 2,
+  Size = 3,
+  MediaType = 4
+}
+
+enum SortOrder {
+  Descending = 0,               // Default (newest first)
+  Ascending = 1
 }
 
 interface Pagination {
-  offset: uint256;
-  limit: uint256;
+  offset: uint256;              // Skip first N items
+  limit: uint256;               // Return max N items (default: 50, max: 200)
+}
+
+interface StorageListResponse {
+  // Vault info
+  vaultId: bytes32;
+  keyVersion: uint256;
+
+  // Items (metadata only)
+  items: ItemSummary[];
+
+  // Pagination info
+  totalCount: uint256;          // Total matching items
+  returnedCount: uint256;       // Items in this response
+  hasMore: bool;
+  nextOffset?: uint256;         // Offset for next page
+
+  // Stats
+  totalSize: uint256;           // Total bytes of matching items
+  storageUsed: uint256;         // Vault's total storage used
+  storageQuota: uint256;        // Vault's storage quota
+}
+
+interface ItemSummary {
+  // Identity
+  itemId: bytes32;
+  keyVersion: uint256;
+
+  // Metadata
+  name: string;
+  description?: string;
+  mediaType: string;
+  contentSize: uint256;
+  tags?: string[];
+  folder?: string;
+
+  // State
+  state: ItemState;
+  requiresReencryption: bool;
+
+  // Timestamps
+  createdAt: uint256;
+  updatedAt?: uint256;
+
+  // Note: NO encryptedContent, iv, authTag (list returns metadata only)
 }
 ```
 
-**Validation Rules:**
+**Validation Rules (INV71: Access Control):**
 - Vault MUST be Unlocked
-- Device MUST be Present and in vault ring
+- Device MUST be Present in current epoch
+- Device MUST be in vault's device ring
+- `pagination.limit` MUST be <= 200
+- By default, only Active items returned (use `includeArchived` for others)
 
 ### 7.9 SHARE_DISTRIBUTE (0x7D)
 
@@ -1239,7 +1458,7 @@ This specification explicitly does NOT define:
 
 - node-model.md v0.6 — Node structure
 - state-sync.md v0.6 — Sync protocol
-- invariants.md v0.6.9 — Protocol invariants INV19-26, INV43
+- invariants.md v0.7.4 — Protocol invariants INV19-26, INV43, INV70-72
 - errors.md v0.6.9 — Error catalog
 - presence.md v0.4 — Presence states
 - validator.md v0.4 — Validator mechanics
@@ -1259,3 +1478,4 @@ This specification explicitly does NOT define:
 | v0.7.1 | **Device layer**: Added Device messages (0x70-0x7F) for trusted device storage |
 | v0.7.2 | **Vault layer**: Added Vault/Storage message details (VAULT_CREATE, VAULT_CONFIGURE, VAULT_UNLOCK, VAULT_LOCK, STORAGE_*, SHARE_*); ZK proof integration |
 | v0.7.3 | **Cryptographic layer**: Enhanced SHARE_DISTRIBUTE/REQUEST/PROVIDE with ECIES ciphertext structure, Feldman VSS, key version tracking |
+| v0.7.4 | **Storage layer**: Enhanced STORAGE_PUT/GET/DELETE/LIST with AES-256-GCM encryption, key derivation, integrity verification (INV72), item states, filtering, pagination |

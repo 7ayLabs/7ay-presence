@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Invariants
-**Version:** v0.7.3 (consolidated INV1-75)
+**Version:** v0.7.4 (consolidated INV1-75)
 **Status:** Active
 **Scope:** Protocol-level (canonical)
 **Depends on:** All v0.7.0 specifications
@@ -41,6 +41,7 @@ implementation.
 | Device | INV64-65 | Hybrid (v0.7.1) |
 | Vault | INV66-68 | Hybrid (v0.7.2 — RFC-0005) |
 | Cryptographic | INV69 | Off-chain (v0.7.3 — RFC-0005) |
+| Storage | INV70-72 | Off-chain (v0.7.4 — RFC-0005) |
 | Zero-Knowledge | INV73-75 | Off-chain (v0.7.2 — RFC-0005) |
 
 ---
@@ -618,7 +619,53 @@ This ensures:
 - No device is skipped or receives multiple shares
 - Shamir reconstruction will work correctly
 
-### 4.21 Zero-Knowledge Invariants (v0.7.2)
+### 4.21 Storage Invariants (v0.7.4)
+
+**INV70: Storage Epoch Binding**
+Items MUST be encrypted with the current epoch's vault key.
+
+```
+∀ item i in vault v:
+  i.keyVersion = v.vaultKeyVersion ∨
+  i.state = PendingReencryption
+```
+
+This ensures:
+- Items use current encryption keys
+- Old key versions trigger re-encryption
+- Forward secrecy via key rotation
+
+**INV71: Storage Access Control**
+PUT/GET/DELETE operations MUST require unlocked vault state.
+
+```
+∀ storage_operation op:
+  op.type ∈ {PUT, GET, DELETE, LIST} →
+    vault(op.vaultId).accessState = Unlocked ∧
+    device(op.deviceId).state = Present ∧
+    device(op.deviceId) ∈ vault.deviceRing
+```
+
+This ensures:
+- Storage operations require threshold device presence
+- No access when vault is locked
+- Only authorized devices can access
+
+**INV72: Storage Data Integrity**
+Decrypted content MUST verify against stored content hash.
+
+```
+∀ item i:
+  let plaintext = decrypt(i.encryptedContent, deriveItemKey(vaultKey, i.itemId))
+  keccak256(plaintext) = i.contentHash
+```
+
+This ensures:
+- Content has not been tampered with
+- Encryption/decryption is correct
+- Corrupted data is detected and rejected
+
+### 4.22 Zero-Knowledge Invariants (v0.7.2)
 
 **INV73: ZK Share Proof Validity**
 When policy requires ZK share proofs, all share provisions MUST include valid proofs.
@@ -713,6 +760,7 @@ Some data stored on-chain (hashes, attestations), with full data off-chain.
 | INV64-65 | **Hybrid** | `pallet-devices` → P2P | Device identity and presence binding |
 | INV66-68 | **Hybrid** | `pallet-vaults` → P2P | Vault ring integrity, access threshold, key isolation |
 | INV69 | **Off-chain** | P2P crypto layer | Share distribution validity |
+| INV70-72 | **Off-chain** | P2P storage layer | Storage epoch binding, access control, integrity |
 | INV73-75 | **Off-chain** | P2P + ZK circuits | Zero-knowledge proof verification |
 
 ### 5.3 On-Chain Pallets
@@ -758,6 +806,7 @@ An implementation is considered compliant if and only if:
 - Governance invariants (INV59-60) are enforced by governance pallet
 - Vault invariants (INV66-68) are enforced by vaults pallet with off-chain validation
 - ZK invariants (INV73-75) are enforced by off-chain proof verification
+- Storage invariants (INV70-72) are enforced by storage layer with client verification
 
 ---
 
@@ -775,3 +824,4 @@ An implementation is considered compliant if and only if:
 | v0.7.1 | **Device layer**: Added INV64 (device identity derivation), INV65 (device presence binding) |
 | v0.7.2 | **Vault layer + ZK**: Added INV66-68 (vault ring integrity, access threshold, key isolation), INV73-75 (ZK share/presence/access proofs) — RFC-0005 |
 | v0.7.3 | **Cryptographic layer**: Added INV69 (share distribution validity) — RFC-0005 |
+| v0.7.4 | **Storage layer**: Added INV70 (epoch binding), INV71 (access control), INV72 (data integrity) — RFC-0005 |
