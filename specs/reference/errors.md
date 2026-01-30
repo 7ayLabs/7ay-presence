@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Errors
-**Version:** v0.7.5 (consolidated from v0.4-v0.7.5)
+**Version:** v0.7.6 (consolidated from v0.4-v0.7.6)
 **Status:** Active
 
 > Includes on-chain errors (v0.4-v0.5, v0.7.0) and off-chain semantic layer errors (v0.6-v0.7.0)
@@ -69,6 +69,65 @@ enum ErrorCategory {
   LIFECYCLE = "LIFECYCLE"
 }
 ```
+
+---
+
+## Node Model Errors (v0.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| NODE_001 | InvalidNodeIdentity | Node identity not derivable from on-chain state | INV19 |
+| NODE_002 | NodeEpochMismatch | Node bound to different epoch | INV20 |
+| NODE_003 | InvalidNodeRole | Role not valid for operation | - |
+| NODE_004 | MissingCapability | Node lacks required capability | - |
+| NODE_005 | NodeNotActive | Node not in active state | INV19 |
+
+---
+
+## Discovery Errors (v0.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| DISC_001 | DiscoveryNotSupported | Epoch lacks discovery capability | INV21 |
+| DISC_002 | EpochScopeMismatch | Query targets different epoch | INV21 |
+| DISC_003 | InvalidPresenceState | Sender presence not valid | INV22 |
+| DISC_004 | QueryLimitExceeded | Query returns too many results | - |
+| DISC_005 | InvalidQueryFilter | Query filter parameters invalid | - |
+| DISC_006 | NodeNotDiscoverable | Target node not discoverable | INV22 |
+| DISC_007 | TtlExpired | Announcement TTL has expired | - |
+| DISC_008 | InvalidAnnouncement | Announcement validation failed | - |
+| DISC_009 | DuplicateAnnouncement | Announcement already received | - |
+| DISC_010 | RateLimited | Query rate limit exceeded | INV45 |
+| DISC_011 | PresenceRequired | Sender lacks presence for query | INV45 |
+
+---
+
+## Message Errors (v0.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| MSG_001 | InvalidMessageType | Unknown or invalid message type | - |
+| MSG_002 | InvalidSignature | Message signature verification failed | INV24 |
+| MSG_003 | NonceReused | Nonce already used by sender | INV25 |
+| MSG_004 | EpochMismatch | Message epoch doesn't match current | INV23 |
+| MSG_005 | SenderNotInEpoch | Sender lacks presence in referenced epoch | INV23 |
+| MSG_006 | MessageExpired | Message timestamp outside valid window | - |
+| MSG_007 | InvalidPayload | Message payload validation failed | - |
+| MSG_008 | VersionMismatch | Protocol version not supported | - |
+| MSG_009 | ChainMismatch | Message chain_id doesn't match current chain | INV43 |
+| MSG_010 | BlockBoundExceeded | Current block exceeds message block_bound | INV43 |
+
+---
+
+## State Sync Errors (v0.6)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| SYNC_001 | SyncNotSupported | Epoch lacks state sync capability | - |
+| SYNC_002 | InvalidStateVector | State vector validation failed | INV26 |
+| SYNC_003 | StateConflict | Conflicting state updates detected | INV26 |
+| SYNC_004 | ValidatorRequired | Only validators can perform sync | - |
+| SYNC_005 | SyncTimeout | State sync request timed out | - |
 
 ---
 
@@ -171,80 +230,6 @@ enum ErrorCategory {
     epochId: 42,
     validator: "0x1234...",
     expectedRandomness: "0xabcd..."
-  }
-}
-```
-
----
-
-## Message Errors (v0.6.9 Security)
-
-| Code | Name | Condition | Invariant |
-|------|------|-----------|-----------|
-| MSG_009 | ChainMismatch | Message chain_id doesn't match current chain | INV43 |
-| MSG_010 | BlockBoundExceeded | Current block exceeds message block_bound | INV43 |
-
-### MSG_009: ChainMismatch
-```typescript
-{
-  code: "MSG_009",
-  category: "MESSAGE",
-  message: "Message chain_id does not match current chain",
-  context: {
-    messageChainId: 1,
-    currentChainId: 137,
-    sender: "0x1234..."
-  }
-}
-```
-
-### MSG_010: BlockBoundExceeded
-```typescript
-{
-  code: "MSG_010",
-  category: "MESSAGE",
-  message: "Message has expired (current block exceeds block_bound)",
-  context: {
-    blockBound: 1000000,
-    currentBlock: 1000150,
-    sender: "0x1234..."
-  }
-}
-```
-
----
-
-## Discovery Errors (v0.6.9 Security)
-
-| Code | Name | Condition | Invariant |
-|------|------|-----------|-----------|
-| DISC_010 | RateLimited | Query rate limit exceeded | INV45 |
-| DISC_011 | PresenceRequired | Sender lacks presence for query | INV45 |
-
-### DISC_010: RateLimited
-```typescript
-{
-  code: "DISC_010",
-  category: "DISCOVERY",
-  message: "Query rate limit exceeded",
-  context: {
-    sender: "0x1234...",
-    queriesThisMinute: 61,
-    maxQueriesPerMinute: 60
-  }
-}
-```
-
-### DISC_011: PresenceRequired
-```typescript
-{
-  code: "DISC_011",
-  category: "DISCOVERY",
-  message: "Sender must have valid presence to query discovery",
-  context: {
-    sender: "0x1234...",
-    epochId: 42,
-    presenceState: "None"
   }
 }
 ```
@@ -516,7 +501,7 @@ enum ErrorCategory {
 | STOR_015 | ItemNotFound | Storage item not found | - |
 | STOR_016 | ItemTooLarge | Item exceeds max size | - |
 | STOR_017 | InvalidMediaType | Media type not allowed by policy | - |
-| STOR_018 | KeyVersionMismatch | Item encrypted with old key | INV70 |
+| STOR_018 | KeyVersionMismatch | Key version mismatch (item or share) | INV70 |
 | STOR_019 | IntegrityCheckFailed | Content hash mismatch | INV72 |
 
 ### STOR_007: VaultLocked

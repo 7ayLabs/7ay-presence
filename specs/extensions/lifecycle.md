@@ -63,15 +63,14 @@ This version does **NOT** define:
 
 ### 2.2 State Definitions
 
-```typescript
-enum VaultAccessState {
-  Locked = 0,       // < threshold devices present, key not reconstructed
-  Unlocked = 1,     // >= threshold devices present, key available
-  Suspended = 2,    // Owner-initiated emergency lock
-  Recovering = 3,   // Device recovery in progress
-  Migrating = 4     // Key rotation during epoch transition
-}
-```
+See [vaults.md](vaults.md#41-state-enum) for the canonical VaultAccessState definition:
+- **Locked**: < threshold devices present, key not reconstructed
+- **Unlocked**: >= threshold devices present, key available
+- **Suspended**: Owner-initiated emergency lock
+- **Recovering**: Device recovery in progress
+- **Migrating**: Key rotation during epoch transition
+
+For device states, see [devices.md](devices.md#23-device-states).
 
 ---
 

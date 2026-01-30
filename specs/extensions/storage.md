@@ -932,13 +932,15 @@ FOR ALL items i:
 
 ## 10. Error Codes
 
+Storage-specific error codes. See [errors.md](../reference/errors.md) for the complete catalog.
+
 | Code | Name | Description | Invariant |
 |------|------|-------------|-----------|
 | STOR_014 | StorageQuotaExceeded | Storage limit reached | - |
 | STOR_015 | ItemNotFound | Item ID not found | - |
 | STOR_016 | ItemTooLarge | Exceeds max item size | - |
 | STOR_017 | InvalidMediaType | MIME type not allowed | - |
-| STOR_018 | KeyVersionMismatch | Item encrypted with old key | INV70 |
+| STOR_018 | KeyVersionMismatch | Key version mismatch (item or share) | INV70 |
 | STOR_019 | IntegrityCheckFailed | Content hash mismatch | INV72 |
 
 ---

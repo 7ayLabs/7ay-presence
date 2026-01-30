@@ -81,7 +81,8 @@ basic presence tracking.
 pub enum EpochCapability {
     PresenceOnly,             // 0 - Default, v0.4 compatible
     PresenceWithSignals,      // 1 - Presence + signal emission
-    PresenceWithEphemeralData // 2 - Full ephemeral data support
+    PresenceWithEphemeralData, // 2 - Full ephemeral data support
+    PresenceWithStorage       // 3 - Presence-based encrypted storage (v0.7.4)
 }
 ```
 

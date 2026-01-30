@@ -1,7 +1,7 @@
 # 7ay Presence Protocol
 
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](https://mariadb.com/bsl11/)
-[![Version](https://img.shields.io/badge/Version-0.7.5-green.svg)](specs/README.md)
+[![Version](https://img.shields.io/badge/Version-0.7.6-green.svg)](specs/README.md)
 
 Canonical specification for the 7ay Proof of Presence (PoP) Protocol.
 
@@ -9,7 +9,7 @@ This repository contains protocol specifications, governance processes, and refe
 
 ## Current Version
 
-**v0.7.5** — Lifecycle Management for Presence-Based Vaults
+**v0.7.6** — Repository Audit & Consistency Cleanup
 
 | Layer | Versions | Scope |
 |-------|----------|-------|
@@ -17,7 +17,7 @@ This repository contains protocol specifications, governance processes, and refe
 | Epoch | v0.2 | Lifecycle, temporal boundaries |
 | Governance | v0.5, v0.6.9, v0.7.0 | Ephemeral data, capabilities, policies, key management, trust model |
 | Semantic | v0.6.0-0.3, v0.6.9 | Node discovery, messaging, state sync, rate limiting |
-| Extensions | v0.6.4-v0.7.5 | Media, boomerang, autonomous, octopus, devices, vaults, ZK proofs, crypto, storage, lifecycle |
+| Extensions | v0.6.4-v0.7.6 | Media, boomerang, autonomous, octopus, devices, vaults, ZK proofs, crypto, storage, lifecycle |
 | Security | v0.6.9, v0.7.0 | Chain binding, key destruction, rate limiting |
 | Economics | v0.7.0 | Validator staking, slashing, stake concentration |
 | Recovery | v0.7.0 | Validator recovery, protocol upgrades |
@@ -92,7 +92,7 @@ This repository contains protocol specifications, governance processes, and refe
 
 ## Protocol Invariants
 
-The protocol defines 82 invariants across eighteen categories:
+The protocol defines 78 invariants across eighteen categories:
 
 | Category | Range | Scope |
 |----------|-------|-------|
@@ -114,6 +114,8 @@ The protocol defines 82 invariants across eighteen categories:
 | Storage | INV70-72 | Epoch binding, access control, data integrity |
 | Zero-Knowledge | INV73-75 | ZK share proof, presence proof, access proof |
 | Lifecycle | INV76-78 | Auto-lock, key destruction, epoch rotation |
+
+Total: 78 invariants (INV1-78).
 
 ## Implementation
 

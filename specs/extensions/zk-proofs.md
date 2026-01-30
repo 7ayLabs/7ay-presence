@@ -252,10 +252,7 @@ function verifyShareProof(
 
 ### 4.4 Invariant (INV73)
 
-```
-FOR ALL share_provision sp WHERE sp.vault.policy.requireZKShareProof = true:
-  verifyShareProof(sp.zkShareProof, sp.vault.zkConfig.shareVerifyingKey) = true
-```
+See [invariants.md](../reference/invariants.md#inv73-zk-share-proof-validity) for the canonical definition.
 
 ---
 
@@ -362,10 +359,7 @@ function verifyPresenceProof(
 
 ### 5.5 Invariant (INV74)
 
-```
-FOR ALL presence_claim pc WHERE pc.vault.policy.requireZKPresenceProof = true:
-  verifyPresenceProof(pc.zkPresenceProof, pc.vault.zkConfig.presenceVerifyingKey) = true
-```
+See [invariants.md](../reference/invariants.md#inv74-zk-presence-proof-validity) for the canonical definition.
 
 ---
 
@@ -469,10 +463,7 @@ function verifyAccessProof(
 
 ### 6.5 Invariant (INV75)
 
-```
-FOR ALL access_request ar WHERE ar.vault.policy.requireZKAccessProof = true:
-  verifyAccessProof(ar.zkAccessProof, ar.vault.zkConfig.accessVerifyingKey) = true
-```
+See [invariants.md](../reference/invariants.md#inv75-zk-access-proof-validity) for the canonical definition.
 
 ---
 

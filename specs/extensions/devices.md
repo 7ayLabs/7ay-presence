@@ -538,15 +538,9 @@ interface DeviceRing {
 
 ### 7.2 Ring Constraints (INV66)
 
-```
-∀ ring r:
-  r.threshold >= 2 ∧
-  r.totalDevices >= 3 ∧
-  r.threshold <= r.totalDevices ∧
-  r.totalDevices <= 255 ∧
-  count(r.devices) = r.totalDevices ∧
-  ∀ d ∈ r.devices: d.state ≠ Revoked
-```
+See [invariants.md](../reference/invariants.md#inv66-device-ring-integrity) for the canonical definition.
+
+Summary: Minimum 2-of-3 threshold, all devices belong to owner, no revoked devices.
 
 ### 7.3 Minimum Configuration
 

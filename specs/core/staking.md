@@ -3,7 +3,7 @@
 **Version:** v0.7.0
 **Status:** Draft
 **Scope:** Protocol-level (canonical)
-**Depends on:** validators.md v0.7.0, disputes.md v0.4
+**Depends on:** validators.md v0.4, disputes.md v0.4
 **RFC:** RFC-0001
 
 ---

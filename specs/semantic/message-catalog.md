@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.7.5
+**Version:** v0.7.6
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
 **Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.7.5
@@ -554,7 +554,68 @@ enum DisputeAction {
 
 ---
 
-## 6. Device Messages (v0.7.1)
+## 6. Extension Messages (v0.6.4-0.6.7)
+
+The following message types are defined for protocol extensions. For complete specifications, see the respective extension documents.
+
+### 6.1 Media Messages (0x30-0x33) — v0.6.4
+
+Ephemeral media sharing within epochs.
+
+| Type | Name | Description |
+|------|------|-------------|
+| 0x30 | MEDIA_ANNOUNCE | Announce media availability |
+| 0x31 | MEDIA_REQUEST | Request media content |
+| 0x32 | MEDIA_RESPONSE | Provide media content |
+| 0x33 | MEDIA_REVOKE | Revoke media access |
+
+See [ephemeral-media.md](../extensions/ephemeral-media.md) for complete specification. Invariants: INV27-29.
+
+### 6.2 Boomerang Messages (0x40-0x43) — v0.6.5
+
+Return path verification for message delivery confirmation.
+
+| Type | Name | Description |
+|------|------|-------------|
+| 0x40 | BOOMERANG_SEND | Initiate boomerang routing |
+| 0x41 | BOOMERANG_ACK | Acknowledge hop receipt |
+| 0x42 | BOOMERANG_RETURN | Return path message |
+| 0x43 | BOOMERANG_COMPLETE | Confirm complete cycle |
+
+See [boomerang.md](../extensions/boomerang.md) for complete specification. Invariants: INV30-33, INV54-56.
+
+### 6.3 Autonomous Messages (0x50-0x54) — v0.6.6
+
+Pattern-based autonomous transaction execution.
+
+| Type | Name | Description |
+|------|------|-------------|
+| 0x50 | AUTONOMOUS_INTENT | Declare automation intent |
+| 0x51 | AUTONOMOUS_PATTERN | Define execution pattern |
+| 0x52 | AUTONOMOUS_EXECUTE | Trigger execution |
+| 0x53 | AUTONOMOUS_FINALIZE | Validator finalization |
+| 0x54 | AUTONOMOUS_REVOKE | Revoke intent/pattern |
+
+See [autonomous.md](../extensions/autonomous.md) for complete specification. Invariants: INV34-37, INV50-53.
+
+### 6.4 Octopus Messages (0x60-0x65) — v0.6.7
+
+Dynamic node scaling through sub-node division.
+
+| Type | Name | Description |
+|------|------|-------------|
+| 0x60 | OCTOPUS_THRESHOLD | Report throughput threshold |
+| 0x61 | OCTOPUS_DIVIDE | Initiate node division |
+| 0x62 | OCTOPUS_SUBNODE | Sub-node announcement |
+| 0x63 | OCTOPUS_COORDINATE | Coordination between sub-nodes |
+| 0x64 | OCTOPUS_MERGE | Initiate sub-node merge |
+| 0x65 | OCTOPUS_STATE_SHARE | Share state between sub-nodes |
+
+See [octopus.md](../extensions/octopus.md) for complete specification. Invariants: INV38-42, INV63.
+
+---
+
+## 7. Device Messages (v0.7.1)
 
 Device messages enable trusted device management for presence-based storage.
 See `devices.md` for complete device specification.
@@ -702,12 +763,12 @@ interface DeviceRecoveryAttestation {
 
 ---
 
-## 7. Vault Messages (v0.7.2)
+## 8. Vault Messages (v0.7.2)
 
 Vault messages enable presence-gated encrypted storage operations.
 See `vaults.md` for complete vault specification.
 
-### 7.1 VAULT_CREATE (0x75)
+### 8.1 VAULT_CREATE (0x75)
 
 Create a new vault with initial device ring.
 
@@ -773,7 +834,7 @@ interface ZKConfig {
 - All device signatures MUST be valid
 - `shareCommitments.length == devices.length`
 
-### 7.2 VAULT_CONFIGURE (0x76)
+### 8.2 VAULT_CONFIGURE (0x76)
 
 Update vault configuration.
 
@@ -814,7 +875,7 @@ enum ConfigType {
 - After changes: INV66 constraints MUST hold
 - For RotateKey: new share commitments required
 
-### 7.3 VAULT_UNLOCK (0x77)
+### 8.3 VAULT_UNLOCK (0x77)
 
 Request vault unlock (trigger share collection).
 See `lifecycle.md` for complete unlock flow and key reconstruction.
@@ -893,7 +954,7 @@ enum UnlockStatus {
 - `timeout` MUST be <= 300 seconds (5 minutes max)
 - If policy requires: ZK presence proof MUST verify
 
-### 7.4 VAULT_LOCK (0x78)
+### 8.4 VAULT_LOCK (0x78)
 
 Manually lock vault (emergency or planned).
 See `lifecycle.md` for auto-lock mechanism and key destruction.
@@ -963,7 +1024,7 @@ interface VaultAutoLockedEvent {
 - Vault MUST NOT already be in terminal state
 - If transitionToSuspended: requires owner signature
 
-### 7.5 STORAGE_PUT (0x79)
+### 8.5 STORAGE_PUT (0x79)
 
 Store encrypted item in vault.
 See `storage.md` for complete storage specification and key derivation.
@@ -1038,7 +1099,7 @@ itemKey = hkdf_sha256(
 - `authTag` MUST be exactly 16 bytes
 - `iv` MUST be exactly 12 bytes
 
-### 7.6 STORAGE_GET (0x7A)
+### 8.6 STORAGE_GET (0x7A)
 
 Retrieve encrypted item from vault.
 See `storage.md` for decryption and integrity verification.
@@ -1108,7 +1169,7 @@ enum ItemState {
 - Item MUST exist and state ∈ {Active, Archived, PendingReencryption}
 - If `requiresReencryption`: client SHOULD re-encrypt with current key
 
-### 7.7 STORAGE_DELETE (0x7B)
+### 8.7 STORAGE_DELETE (0x7B)
 
 Delete stored item from vault.
 See `storage.md` for deletion states and secure erasure.
@@ -1155,7 +1216,7 @@ interface StorageDeleteResponse {
 - Item MUST exist and state ∈ {Active, Archived, PendingDelete}
 - For Secure delete: SHOULD generate secure erasure attestation
 
-### 7.8 STORAGE_LIST (0x7C)
+### 8.8 STORAGE_LIST (0x7C)
 
 List stored items (metadata only, no encrypted content).
 See `storage.md` for storage model.
@@ -1276,7 +1337,7 @@ interface ItemSummary {
 - `pagination.limit` MUST be <= 200
 - By default, only Active items returned (use `includeArchived` for others)
 
-### 7.9 SHARE_DISTRIBUTE (0x7D)
+### 8.9 SHARE_DISTRIBUTE (0x7D)
 
 Distribute Shamir key shares to devices after vault creation or key rotation.
 See `crypto.md` for detailed cryptographic specification.
@@ -1322,7 +1383,7 @@ interface ECIESCiphertext {
 - Pedersen commitments MUST be provided for each share
 - If Feldman provided: commitment count MUST equal threshold
 
-### 7.10 SHARE_REQUEST (0x7E)
+### 8.10 SHARE_REQUEST (0x7E)
 
 Request shares from other devices to reconstruct vault key.
 See `crypto.md` for key reconstruction protocol.
@@ -1363,7 +1424,7 @@ interface ShareRequestPayload {
 3. Requester collects ≥ threshold shares
 4. Requester reconstructs key via Lagrange interpolation
 
-### 7.11 SHARE_PROVIDE (0x7F)
+### 8.11 SHARE_PROVIDE (0x7F)
 
 Provide encrypted share in response to SHARE_REQUEST.
 See `crypto.md` for ECIES encryption and Feldman verification.
@@ -1417,9 +1478,9 @@ interface ZKShareProof {
 
 ---
 
-## 8. Message Validation
+## 9. Message Validation
 
-### 8.1 Common Validation
+### 9.1 Common Validation
 
 All messages MUST pass:
 
@@ -1433,7 +1494,7 @@ All messages MUST pass:
 8. **Nonce check**: Nonce not previously used by sender in epoch
 9. **Timestamp**: Within acceptable window (±5 minutes)
 
-### 8.2 Validation Order
+### 9.2 Validation Order
 
 ```
 1. version      → MSG_008
@@ -1448,7 +1509,7 @@ All messages MUST pass:
 10. payload     → MSG_007
 ```
 
-### 8.3 Error Responses
+### 9.3 Error Responses
 
 See `errors.md v0.6.9` for error codes:
 - MSG_001: InvalidMessageType
@@ -1464,9 +1525,9 @@ See `errors.md v0.6.9` for error codes:
 
 ---
 
-## 9. Invariants
+## 10. Invariants
 
-### 9.1 Message Invariants
+### 10.1 Message Invariants
 
 **INV23: Epoch-Bound Messages**
 All messages MUST reference a valid epoch with sufficient capability.
@@ -1491,15 +1552,15 @@ This invariant prevents:
 - **Delayed replay**: Messages expire after block_bound, preventing replay attacks
 - **Fork attacks**: Messages signed for one fork are invalid on others
 
-### 9.2 Enforcement
+### 10.2 Enforcement
 
 See `invariants.md v0.6.9` for formal definitions.
 
 ---
 
-## 10. Security Considerations
+## 11. Security Considerations
 
-### 10.1 Replay Protection (Enhanced v0.6.9)
+### 11.1 Replay Protection (Enhanced v0.6.9)
 
 Replay attacks are prevented by multiple layers:
 - **Unique nonce** per message (INV25)
@@ -1515,13 +1576,13 @@ The chain binding mechanism ensures:
 3. Old signatures become invalid automatically
 ```
 
-### 10.2 Spoofing Prevention
+### 11.2 Spoofing Prevention
 
 Sender spoofing is prevented by:
 - ECDSA signature verification
 - On-chain presence verification
 
-### 10.3 Denial of Service
+### 11.3 Denial of Service
 
 Mitigation:
 - Rate limiting per sender
@@ -1530,7 +1591,7 @@ Mitigation:
 
 ---
 
-## 11. Non-Goals
+## 12. Non-Goals
 
 This specification explicitly does NOT define:
 
@@ -1542,7 +1603,7 @@ This specification explicitly does NOT define:
 
 ---
 
-## 12. Backwards Compatibility
+## 13. Backwards Compatibility
 
 | Aspect | Status |
 |--------|--------|
@@ -1551,9 +1612,11 @@ This specification explicitly does NOT define:
 | Existing events | Not affected |
 | On-chain functions | Used for verification |
 
+**Note:** Message envelope version remains `"0.6.9"` for backward compatibility with existing implementations. Protocol version is tracked separately in specification headers (currently v0.7.6).
+
 ---
 
-## 13. References
+## 14. References
 
 - node-model.md v0.6 — Node structure
 - state-sync.md v0.6 — Sync protocol
@@ -1565,7 +1628,7 @@ This specification explicitly does NOT define:
 
 ---
 
-## 14. Changelog
+## 15. Changelog
 
 | Version | Changes |
 |---------|---------|
@@ -1580,3 +1643,4 @@ This specification explicitly does NOT define:
 | v0.7.3 | **Cryptographic layer**: Enhanced SHARE_DISTRIBUTE/REQUEST/PROVIDE with ECIES ciphertext structure, Feldman VSS, key version tracking |
 | v0.7.4 | **Storage layer**: Enhanced STORAGE_PUT/GET/DELETE/LIST with AES-256-GCM encryption, key derivation, integrity verification (INV72), item states, filtering, pagination |
 | v0.7.5 | **Lifecycle management**: Enhanced VAULT_UNLOCK with session management, unlock protocol, status tracking; Enhanced VAULT_LOCK with auto-lock reasons, key destruction confirmation (INV76-78) |
+| v0.7.6 | **Documentation cleanup**: Added Section 6 (Extension Messages) with reference sections for Media, Boomerang, Autonomous, Octopus message types |

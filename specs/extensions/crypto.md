@@ -973,12 +973,14 @@ FOR ALL vault v, device d:
 
 ## 11. Error Codes
 
+Cryptographic layer error codes. See [errors.md](../reference/errors.md) for the complete catalog.
+
 | Code | Name | Description |
 |------|------|-------------|
 | STOR_011 | ShareAlreadyProvided | Device already provided share for this request |
 | STOR_012 | InvalidShare | Share verification failed (Pedersen/Feldman) |
 | STOR_013 | ShareMismatch | Share index doesn't match expected |
-| STOR_018 | KeyVersionMismatch | Share is for different key version |
+| STOR_018 | KeyVersionMismatch | Key version mismatch (item or share) |
 
 ---
 

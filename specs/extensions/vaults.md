@@ -117,17 +117,9 @@ interface DeviceRing {
 
 ### 3.2 Ring Constraints (INV66)
 
-```
-FOR ALL vault v:
-  v.deviceRing.threshold >= 2 AND
-  v.deviceRing.totalDevices >= 3 AND
-  v.deviceRing.threshold <= v.deviceRing.totalDevices AND
-  v.deviceRing.totalDevices <= 255 AND
-  count(v.deviceRing.devices) = v.deviceRing.totalDevices AND
-  FOR ALL d IN v.deviceRing.devices:
-    device(d).owner = v.owner AND
-    device(d).state != Revoked
-```
+See [invariants.md](../reference/invariants.md#inv66-device-ring-integrity) for the canonical definition.
+
+Summary: Minimum 2-of-3 threshold, all devices belong to owner, no revoked devices.
 
 ### 3.3 Recommended Configurations
 
@@ -307,7 +299,12 @@ function computePolicyHash(policy: VaultPolicy): bytes32 {
 
 ### 6.1 Key Derivation
 
-Vault keys are derived using HKDF (reusing ephemeral.md pattern):
+See [crypto.md](crypto.md) for the complete three-step key derivation hierarchy:
+1. **Owner Root Key** from master secret
+2. **Vault Root Key** from owner root + vaultId
+3. **Epoch Key** from vault root + epochId + epochRandomness
+
+**Simplified overview** (for conceptual understanding):
 
 ```typescript
 function deriveVaultKey(
@@ -321,6 +318,8 @@ function deriveVaultKey(
   return hkdf_sha256(ownerMasterSecret, salt, info);
 }
 ```
+
+**Note:** This is a simplified view. Implementations MUST use the full derivation hierarchy in crypto.md for security isolation between vaults and epochs.
 
 ### 6.2 Share Distribution
 
@@ -663,62 +662,16 @@ enum LockReason {
 
 ## 9. Invariants
 
-### 9.1 INV66: Device Ring Integrity
+All vault invariants are defined in [invariants.md](../reference/invariants.md).
 
-```
-FOR ALL vault v:
-  v.deviceRing.threshold >= 2 AND
-  v.deviceRing.totalDevices >= 3 AND
-  v.deviceRing.threshold <= v.deviceRing.totalDevices AND
-  count(v.deviceRing.devices) = v.deviceRing.totalDevices AND
-  FOR ALL d IN v.deviceRing.devices:
-    device(d).owner = v.owner AND
-    device(d).state != Revoked
-```
-
-### 9.2 INV67: Vault Access Threshold
-
-```
-FOR ALL vault v:
-  let presentCount = count(d IN v.deviceRing.devices
-    WHERE device(d).state = Present AND
-          device(d).currentEpochId = currentEpoch)
-
-  presentCount < v.deviceRing.threshold IMPLIES
-    v.accessState = Locked
-```
-
-### 9.3 INV68: Vault Key Isolation
-
-```
-FOR ALL vault v WHERE v.accessState transitions to Locked:
-  secureZero(v.reconstructedKey) AND
-  v.reconstructedKey = null
-```
-
-### 9.4 INV73: ZK Share Proof Validity
-
-```
-FOR ALL share_provision sp WHERE sp.vault.policy.requireZKShareProof = true:
-  verify(sp.zkShareProof.proof, sp.zkShareProof.publicInputs,
-         sp.vault.zkConfig.shareVerifyingKey) = true
-```
-
-### 9.5 INV74: ZK Presence Proof Validity
-
-```
-FOR ALL presence_claim pc WHERE pc.vault.policy.requireZKPresenceProof = true:
-  verify(pc.zkPresenceProof.proof, pc.zkPresenceProof.publicInputs,
-         pc.vault.zkConfig.presenceVerifyingKey) = true
-```
-
-### 9.6 INV75: ZK Access Proof Validity
-
-```
-FOR ALL access_request ar WHERE ar.vault.policy.requireZKAccessProof = true:
-  verify(ar.zkAccessProof.proof, ar.zkAccessProof.publicInputs,
-         ar.vault.zkConfig.accessVerifyingKey) = true
-```
+| Invariant | Scope |
+|-----------|-------|
+| [INV66](../reference/invariants.md#inv66-device-ring-integrity) | Device ring integrity (threshold, ownership) |
+| [INV67](../reference/invariants.md#inv67-vault-access-threshold) | Vault access threshold enforcement |
+| [INV68](../reference/invariants.md#inv68-vault-key-isolation) | Key zeroing on lock |
+| [INV73](../reference/invariants.md#inv73-zk-share-proof-validity) | ZK share proof validity |
+| [INV74](../reference/invariants.md#inv74-zk-presence-proof-validity) | ZK presence proof validity |
+| [INV75](../reference/invariants.md#inv75-zk-access-proof-validity) | ZK access proof validity |
 
 ---
 
