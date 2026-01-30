@@ -2,7 +2,7 @@
 
 > Proof of Presence (PoP) — Canonical Protocol Specifications
 
-**Version:** 0.6.x
+**Version:** 0.6.9
 **Status:** Active
 **License:** BSL 1.1 → Apache 2.0 (2030)
 

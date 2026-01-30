@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Diagram — State Synchronization Flow
-**Version:** v0.6.3
+**Version:** v0.6.9
 **Status:** Draft
 
 ---
