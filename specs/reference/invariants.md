@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Invariants
-**Version:** v0.7.4 (consolidated INV1-75)
+**Version:** v0.7.5 (consolidated INV1-78)
 **Status:** Active
 **Scope:** Protocol-level (canonical)
 **Depends on:** All v0.7.0 specifications
@@ -43,6 +43,7 @@ implementation.
 | Cryptographic | INV69 | Off-chain (v0.7.3 — RFC-0005) |
 | Storage | INV70-72 | Off-chain (v0.7.4 — RFC-0005) |
 | Zero-Knowledge | INV73-75 | Off-chain (v0.7.2 — RFC-0005) |
+| Lifecycle | INV76-78 | Off-chain (v0.7.5 — RFC-0005) |
 
 ---
 
@@ -718,6 +719,53 @@ This proves:
 - Requester has valid vault access
 - Request is bound to epoch and nonce (prevents replay)
 
+### 4.23 Lifecycle Invariants (v0.7.5)
+
+**INV76: Auto-Lock on Threshold Loss**
+When device departure causes present count to fall below threshold, vault MUST lock immediately.
+
+```
+∀ vault v, device d:
+  d ∈ v.deviceRing ∧ d.state transitions from Present to Absent →
+    let presentCount = count(d' ∈ v.deviceRing WHERE d'.state = Present)
+    presentCount < v.threshold → v.accessState = Locked within 1 block
+```
+
+This ensures:
+- Immediate response to device departure
+- No access window when threshold lost
+- Automatic security enforcement
+
+**INV77: Key Destruction on Lock**
+Reconstructed vault key MUST be securely destroyed when vault locks.
+
+```
+∀ vault v:
+  v.accessState transitions to Locked|Suspended →
+    secureZero(v.reconstructedKey) ∧
+    v.reconstructedKey = null
+```
+
+This ensures:
+- Keys not retained after lock
+- Memory securely cleared
+- Forward secrecy on device departure
+
+**INV78: Epoch Transition Key Rotation**
+Vaults with key rotation policy MUST rotate keys on epoch transition.
+
+```
+∀ vault v WHERE v.policy.keyRotationOnEpochChange = true:
+  epochTransition(oldEpoch, newEpoch) →
+    v.vaultKeyVersion(newEpoch) > v.vaultKeyVersion(oldEpoch) ∧
+    ∀ item i ∈ v: i.keyVersion = v.vaultKeyVersion(newEpoch) eventually
+```
+
+This ensures:
+- Forward secrecy via key rotation
+- All items re-encrypted with new key
+- Old epoch keys become useless
+
 ---
 
 ## 5. Invariant Enforcement
@@ -762,6 +810,7 @@ Some data stored on-chain (hashes, attestations), with full data off-chain.
 | INV69 | **Off-chain** | P2P crypto layer | Share distribution validity |
 | INV70-72 | **Off-chain** | P2P storage layer | Storage epoch binding, access control, integrity |
 | INV73-75 | **Off-chain** | P2P + ZK circuits | Zero-knowledge proof verification |
+| INV76-78 | **Off-chain** | P2P lifecycle | Auto-lock, key destruction, epoch rotation |
 
 ### 5.3 On-Chain Pallets
 
@@ -796,7 +845,7 @@ Some data stored on-chain (hashes, attestations), with full data off-chain.
 ## 6. Compliance
 
 An implementation is considered compliant if and only if:
-- All invariants INV1-75 hold under all conditions
+- All invariants INV1-78 hold under all conditions
 - On-chain invariants are enforced via Substrate pallets
 - Off-chain invariants validate against on-chain state
 - Hybrid invariants have on-chain anchors with off-chain execution
@@ -807,6 +856,7 @@ An implementation is considered compliant if and only if:
 - Vault invariants (INV66-68) are enforced by vaults pallet with off-chain validation
 - ZK invariants (INV73-75) are enforced by off-chain proof verification
 - Storage invariants (INV70-72) are enforced by storage layer with client verification
+- Lifecycle invariants (INV76-78) are enforced by lifecycle manager with immediate response
 
 ---
 
@@ -825,3 +875,4 @@ An implementation is considered compliant if and only if:
 | v0.7.2 | **Vault layer + ZK**: Added INV66-68 (vault ring integrity, access threshold, key isolation), INV73-75 (ZK share/presence/access proofs) — RFC-0005 |
 | v0.7.3 | **Cryptographic layer**: Added INV69 (share distribution validity) — RFC-0005 |
 | v0.7.4 | **Storage layer**: Added INV70 (epoch binding), INV71 (access control), INV72 (data integrity) — RFC-0005 |
+| v0.7.5 | **Lifecycle management**: Added INV76 (auto-lock on threshold loss), INV77 (key destruction on lock), INV78 (epoch transition key rotation) — RFC-0005 |

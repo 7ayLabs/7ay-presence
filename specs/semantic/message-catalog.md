@@ -1,9 +1,9 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.7.4
+**Version:** v0.7.5
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
-**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.7.4
+**Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.7.5
 
 ---
 
@@ -817,12 +817,28 @@ enum ConfigType {
 ### 7.3 VAULT_UNLOCK (0x77)
 
 Request vault unlock (trigger share collection).
+See `lifecycle.md` for complete unlock flow and key reconstruction.
 
 ```typescript
 interface VaultUnlockPayload {
+  // Vault context
   vaultId: bytes32;
+
+  // Requesting device
   requestingDeviceId: bytes32;
-  presenceProof?: ZKPresenceProof;  // If required by policy
+
+  // Session management
+  sessionId: bytes32;           // Random session identifier
+  timeout: uint256;             // Timeout in seconds (default: 30)
+
+  // Ephemeral key for share responses
+  responsePublicKey: bytes;     // secp256k1 compressed (33 bytes)
+                                // Devices ECIES encrypt shares to this key
+
+  // ZK proof (if required by policy)
+  presenceProof?: ZKPresenceProof;
+
+  // Authorization
   deviceSignature: bytes;
 }
 
@@ -832,37 +848,120 @@ interface ZKPresenceProof {
   presenceListRoot: bytes32;
   proof: bytes;
 }
+
+interface VaultUnlockResponse {
+  sessionId: bytes32;
+  status: UnlockStatus;
+  vaultId: bytes32;
+
+  // Success info
+  unlockedAt?: uint256;
+  presentDevices?: uint8;
+
+  // Failure info
+  failureReason?: string;
+  receivedShares?: uint8;
+  requiredShares?: uint8;
+}
+
+enum UnlockStatus {
+  Pending = 0,        // Waiting for shares
+  Collecting = 1,     // Actively collecting shares
+  Reconstructing = 2, // Threshold met, reconstructing
+  Complete = 3,       // Key reconstructed, vault unlocked
+  Failed = 4,         // Timeout or error
+  Cancelled = 5       // Manually cancelled
+}
+```
+
+**Unlock Protocol (INV76-77):**
+```
+1. Requester broadcasts VAULT_UNLOCK to ring devices
+2. Present devices receive SHARE_REQUEST (auto-triggered)
+3. Each device responds with SHARE_PROVIDE (encrypted to responsePublicKey)
+4. Requester collects ≥ threshold shares
+5. Requester reconstructs vaultKey via Lagrange interpolation
+6. Verify key against vault.keyCommitment
+7. Set vault.accessState = Unlocked
+8. Broadcast VaultUnlockResponse with Complete status
 ```
 
 **Validation Rules:**
-- Requesting device MUST be Present
-- Vault MUST be Locked or already Unlocked
+- Requesting device MUST be Present in current epoch
+- Vault MUST be Locked or Suspended (not Migrating or Recovering)
 - Device MUST be in vault's device ring
+- `timeout` MUST be <= 300 seconds (5 minutes max)
+- If policy requires: ZK presence proof MUST verify
 
 ### 7.4 VAULT_LOCK (0x78)
 
-Manually lock vault (emergency).
+Manually lock vault (emergency or planned).
+See `lifecycle.md` for auto-lock mechanism and key destruction.
 
 ```typescript
 interface VaultLockPayload {
+  // Vault context
   vaultId: bytes32;
+
+  // Lock reason
   reason: LockReason;
+  reasonDetail?: string;        // Optional description (max 256 chars)
+
+  // Authorization (one required)
   ownerSignature?: bytes;
   deviceSignature?: bytes;
   deviceId?: bytes32;
+
+  // Lock options
+  transitionToSuspended: bool;  // true = Suspended, false = Locked
+  notifyDevices: bool;          // Broadcast lock notification to ring
 }
 
 enum LockReason {
-  Manual = 0,
-  Emergency = 1,
-  DeviceLost = 2,
-  PolicyViolation = 3
+  Manual = 0,           // User-initiated lock
+  Emergency = 1,        // Security concern
+  DeviceLost = 2,       // Device marked as lost
+  DeviceCompromised = 3, // Device suspected compromised
+  PolicyViolation = 4,  // Security policy violated
+  EpochClosing = 5,     // Epoch transitioning to Closed
+  ThresholdLost = 6,    // Device departure caused threshold loss (auto)
+  InactivityTimeout = 7 // No activity for configured period (auto)
 }
+
+interface VaultLockResponse {
+  vaultId: bytes32;
+  previousState: VaultAccessState;
+  newState: VaultAccessState;
+  lockedAt: uint256;
+  reason: LockReason;
+  keyDestroyed: bool;   // Confirms INV77 enforcement
+}
+
+interface VaultAutoLockedEvent {
+  vaultId: bytes32;
+  reason: LockReason;
+  triggeringDeviceId?: bytes32;  // Device that left (if ThresholdLost)
+  presentDevices: uint8;
+  threshold: uint8;
+  timestamp: uint256;
+}
+```
+
+**Lock Behavior (INV77: Key Destruction):**
+```
+1. Set vault.accessState = Locked|Suspended
+2. secureZero(vault.reconstructedKey)  // Secure memory wipe
+3. vault.reconstructedKey = null
+4. Cancel any pending operations
+5. If notifyDevices: broadcast VaultAutoLockedEvent
+6. Emit VaultLockResponse
 ```
 
 **Validation Rules:**
 - Owner signature OR device signature required
 - If device: device MUST be in vault ring
+- Vault MUST NOT already be in terminal state
+- If transitionToSuspended: requires owner signature
 
 ### 7.5 STORAGE_PUT (0x79)
 
@@ -1458,7 +1557,8 @@ This specification explicitly does NOT define:
 
 - node-model.md v0.6 — Node structure
 - state-sync.md v0.6 — Sync protocol
-- invariants.md v0.7.4 — Protocol invariants INV19-26, INV43, INV70-72
+- invariants.md v0.7.5 — Protocol invariants INV19-26, INV43, INV70-78
+- lifecycle.md v0.7.5 — Vault lifecycle management
 - errors.md v0.6.9 — Error catalog
 - presence.md v0.4 — Presence states
 - validator.md v0.4 — Validator mechanics
@@ -1479,3 +1579,4 @@ This specification explicitly does NOT define:
 | v0.7.2 | **Vault layer**: Added Vault/Storage message details (VAULT_CREATE, VAULT_CONFIGURE, VAULT_UNLOCK, VAULT_LOCK, STORAGE_*, SHARE_*); ZK proof integration |
 | v0.7.3 | **Cryptographic layer**: Enhanced SHARE_DISTRIBUTE/REQUEST/PROVIDE with ECIES ciphertext structure, Feldman VSS, key version tracking |
 | v0.7.4 | **Storage layer**: Enhanced STORAGE_PUT/GET/DELETE/LIST with AES-256-GCM encryption, key derivation, integrity verification (INV72), item states, filtering, pagination |
+| v0.7.5 | **Lifecycle management**: Enhanced VAULT_UNLOCK with session management, unlock protocol, status tracking; Enhanced VAULT_LOCK with auto-lock reasons, key destruction confirmation (INV76-78) |

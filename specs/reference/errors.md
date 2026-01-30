@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Errors
-**Version:** v0.7.1 (consolidated from v0.4-v0.7.1)
+**Version:** v0.7.5 (consolidated from v0.4-v0.7.5)
 **Status:** Active
 
 > Includes on-chain errors (v0.4-v0.5, v0.7.0) and off-chain semantic layer errors (v0.6-v0.7.0)
@@ -34,6 +34,7 @@ On-chain errors from v0.5 and earlier remain unchanged.
 | Upgrades | On-chain | New in v0.7.0 (RFC-0004) |
 | Device | Off-chain | New in v0.7.1 |
 | Storage | Off-chain | New in v0.7.1 |
+| Lifecycle | Off-chain | New in v0.7.5 |
 
 ---
 
@@ -64,7 +65,8 @@ enum ErrorCategory {
   RECOVERY = "RECOVERY",
   UPGRADES = "UPGRADES",
   DEVICE = "DEVICE",
-  STORAGE = "STORAGE"
+  STORAGE = "STORAGE",
+  LIFECYCLE = "LIFECYCLE"
 }
 ```
 
@@ -563,6 +565,71 @@ enum ErrorCategory {
 
 ---
 
+## Lifecycle Errors (v0.7.5)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| LIFE_001 | UnlockSessionTimeout | Share collection timeout | INV76 |
+| LIFE_002 | InsufficientSharesCollected | Not enough shares received | INV76 |
+| LIFE_003 | KeyReconstructionFailed | Shamir reconstruction failed | INV77 |
+| LIFE_004 | KeyVerificationFailed | Reconstructed key doesn't match commitment | INV77 |
+| LIFE_005 | RotationInProgress | Key rotation already in progress | INV78 |
+| LIFE_006 | RotationFailed | Key rotation failed mid-process | INV78 |
+| LIFE_007 | RecoveryInProgress | Device recovery already in progress | - |
+| LIFE_008 | RecoveryFailed | Device recovery failed | - |
+| LIFE_009 | VaultSuspended | Vault is in suspended state | - |
+| LIFE_010 | VaultMigrating | Vault is migrating keys | INV78 |
+
+### LIFE_001: UnlockSessionTimeout
+```typescript
+{
+  code: "LIFE_001",
+  category: "LIFECYCLE",
+  message: "Unlock session timed out waiting for shares",
+  context: {
+    sessionId: "0x1234...",
+    vaultId: "0xabcd...",
+    receivedShares: 1,
+    requiredShares: 2,
+    timeoutAt: 1705000030
+  }
+}
+```
+
+### LIFE_003: KeyReconstructionFailed
+```typescript
+{
+  code: "LIFE_003",
+  category: "LIFECYCLE",
+  message: "Failed to reconstruct vault key from shares",
+  context: {
+    vaultId: "0xabcd...",
+    sharesUsed: 2,
+    threshold: 2,
+    reason: "InvalidShareIndex"
+  }
+}
+```
+
+### LIFE_006: RotationFailed
+```typescript
+{
+  code: "LIFE_006",
+  category: "LIFECYCLE",
+  message: "Key rotation failed during re-encryption",
+  context: {
+    vaultId: "0xabcd...",
+    oldKeyVersion: 1,
+    newKeyVersion: 2,
+    itemsReencrypted: 45,
+    totalItems: 100,
+    reason: "ItemDecryptionFailed"
+  }
+}
+```
+
+---
+
 ## Recovery Actions
 
 | Error Category | Recovery |
@@ -581,6 +648,7 @@ enum ErrorCategory {
 | UPG_* | Wait for delay, ensure proper quorum |
 | STOR_001-005 | Check device registration, recover lost device, re-register |
 | STOR_006-019 | Unlock vault, wait for devices, retry operation |
+| LIFE_001-010 | Wait for devices, retry unlock, wait for rotation complete |
 
 ---
 
@@ -596,3 +664,4 @@ enum ErrorCategory {
 | v0.6.9 | **Security hardening**: Added MSG_009-010 (chain binding), DISC_010-011 (rate limiting), KEY_001-004 (key management), OCTO_007 (VRF verification) |
 | v0.7.0 | **Production readiness**: Added STK_001-007 (staking), REC_001-006 (recovery), UPG_001-007 (upgrades), AUTO_010-013 (reputation), BOOM_006-009 (small network), OCTO_008-009 (dynamic scaling) |
 | v0.7.1 | **Device layer**: Added STOR_001-020 (device and storage errors) |
+| v0.7.5 | **Lifecycle management**: Added LIFE_001-010 (unlock, rotation, recovery errors) |
