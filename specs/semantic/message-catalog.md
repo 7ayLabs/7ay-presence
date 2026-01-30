@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.7.1
+**Version:** v0.7.2
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
 **Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.9
@@ -702,9 +702,337 @@ interface DeviceRecoveryAttestation {
 
 ---
 
-## 7. Message Validation
+## 7. Vault Messages (v0.7.2)
 
-### 7.1 Common Validation
+Vault messages enable presence-gated encrypted storage operations.
+See `vaults.md` for complete vault specification.
+
+### 7.1 VAULT_CREATE (0x75)
+
+Create a new vault with initial device ring.
+
+```typescript
+interface VaultCreatePayload {
+  // Vault identity
+  nonce: bytes32;               // Random nonce for vaultId derivation
+
+  // Device ring
+  devices: bytes32[];           // Initial device IDs
+  threshold: uint8;             // k in k-of-n
+
+  // Policy
+  policy: VaultPolicy;
+
+  // Key setup
+  keyCommitment: bytes32;       // Pedersen commitment to vault key
+  shareCommitments: bytes32[];  // Commitments to each share
+
+  // ZK configuration (optional)
+  zkConfig?: ZKConfig;
+
+  // Signatures
+  ownerSignature: bytes;
+  deviceSignatures: bytes[];    // Each device signs acceptance
+}
+
+interface VaultPolicy {
+  version: "1.0.0";
+  minDevices: uint8;            // Minimum devices (default: 3)
+  maxDevices: uint8;            // Maximum devices (default: 9)
+  minThreshold: uint8;          // Minimum threshold (default: 2)
+  requireHardwareDevice: bool;
+  requireDeviceDiversity: bool;
+  maxStorageBytes: uint256;
+  allowedMediaTypes: string[];
+  maxItemSize: uint256;
+  autoLockOnEpochClose: bool;
+  keyRotationOnEpochChange: bool;
+  persistDataAcrossEpochs: bool;
+  requireZKShareProof: bool;
+  requireZKPresenceProof: bool;
+  requireZKAccessProof: bool;
+}
+
+interface ZKConfig {
+  shareProofCircuit: string;
+  presenceProofCircuit: string;
+  accessProofCircuit: string;
+  shareVerifyingKey: bytes;
+  presenceVerifyingKey: bytes;
+  accessVerifyingKey: bytes;
+  provingSystem: ProvingSystem;  // Groth16, PLONK, or STARK
+}
+```
+
+**Validation Rules:**
+- Owner MUST have Validated or Finalized presence
+- `devices.length >= 3` (or policy minimum)
+- `threshold >= 2`
+- `threshold <= devices.length`
+- All devices MUST be registered to owner
+- All device signatures MUST be valid
+- `shareCommitments.length == devices.length`
+
+### 7.2 VAULT_CONFIGURE (0x76)
+
+Update vault configuration.
+
+```typescript
+interface VaultConfigurePayload {
+  vaultId: bytes32;
+
+  // What to configure
+  configType: ConfigType;
+
+  // Configuration data (based on type)
+  addDevices?: bytes32[];
+  removeDevices?: bytes32[];
+  newThreshold?: uint8;
+  newPolicy?: VaultPolicy;
+  newZKConfig?: ZKConfig;
+  newShareCommitments?: bytes32[];
+
+  // Authorization
+  ownerSignature: bytes;
+  deviceSignatures?: bytes[];   // Required for device changes
+}
+
+enum ConfigType {
+  AddDevices = 0,
+  RemoveDevices = 1,
+  ChangeThreshold = 2,
+  UpdatePolicy = 3,
+  EnableZK = 4,
+  RotateKey = 5
+}
+```
+
+**Validation Rules:**
+- Owner signature MUST be valid
+- Vault MUST exist
+- For device changes: vault MUST be Unlocked
+- After changes: INV66 constraints MUST hold
+- For RotateKey: new share commitments required
+
+### 7.3 VAULT_UNLOCK (0x77)
+
+Request vault unlock (trigger share collection).
+
+```typescript
+interface VaultUnlockPayload {
+  vaultId: bytes32;
+  requestingDeviceId: bytes32;
+  presenceProof?: ZKPresenceProof;  // If required by policy
+  deviceSignature: bytes;
+}
+
+interface ZKPresenceProof {
+  epochId: uint256;
+  membershipRoot: bytes32;
+  presenceListRoot: bytes32;
+  proof: bytes;
+}
+```
+
+**Validation Rules:**
+- Requesting device MUST be Present
+- Vault MUST be Locked or already Unlocked
+- Device MUST be in vault's device ring
+
+### 7.4 VAULT_LOCK (0x78)
+
+Manually lock vault (emergency).
+
+```typescript
+interface VaultLockPayload {
+  vaultId: bytes32;
+  reason: LockReason;
+  ownerSignature?: bytes;
+  deviceSignature?: bytes;
+  deviceId?: bytes32;
+}
+
+enum LockReason {
+  Manual = 0,
+  Emergency = 1,
+  DeviceLost = 2,
+  PolicyViolation = 3
+}
+```
+
+**Validation Rules:**
+- Owner signature OR device signature required
+- If device: device MUST be in vault ring
+
+### 7.5 STORAGE_PUT (0x79)
+
+Store encrypted item in vault.
+
+```typescript
+interface StoragePutPayload {
+  vaultId: bytes32;
+  itemId: bytes32;              // Derived from content hash
+  encryptedContent: bytes;      // AES-256-GCM encrypted
+  contentHash: bytes32;         // Hash of plaintext for integrity
+  mediaType: string;            // MIME type
+  metadata: ItemMetadata;
+  accessProof?: ZKAccessProof;  // If required by policy
+  deviceSignature: bytes;
+}
+
+interface ItemMetadata {
+  name?: string;
+  size: uint256;
+  createdAt: uint256;
+  tags?: string[];
+}
+```
+
+**Validation Rules:**
+- Vault MUST be Unlocked
+- Device MUST be Present and in vault ring
+- Item size MUST be within policy limits
+- Media type MUST be in allowed types
+
+### 7.6 STORAGE_GET (0x7A)
+
+Retrieve encrypted item from vault.
+
+```typescript
+interface StorageGetPayload {
+  vaultId: bytes32;
+  itemId: bytes32;
+  accessProof?: ZKAccessProof;
+  deviceSignature: bytes;
+}
+```
+
+**Validation Rules:**
+- Vault MUST be Unlocked
+- Device MUST be Present and in vault ring
+- Item MUST exist
+
+### 7.7 STORAGE_DELETE (0x7B)
+
+Delete stored item.
+
+```typescript
+interface StorageDeletePayload {
+  vaultId: bytes32;
+  itemId: bytes32;
+  ownerSignature: bytes;        // Owner required for deletion
+}
+```
+
+**Validation Rules:**
+- Vault MUST be Unlocked
+- Owner signature MUST be valid
+- Item MUST exist
+
+### 7.8 STORAGE_LIST (0x7C)
+
+List stored items (metadata only).
+
+```typescript
+interface StorageListPayload {
+  vaultId: bytes32;
+  filter?: ItemFilter;
+  pagination?: Pagination;
+  deviceSignature: bytes;
+}
+
+interface ItemFilter {
+  mediaType?: string;
+  tags?: string[];
+  createdAfter?: uint256;
+  createdBefore?: uint256;
+}
+
+interface Pagination {
+  offset: uint256;
+  limit: uint256;
+}
+```
+
+**Validation Rules:**
+- Vault MUST be Unlocked
+- Device MUST be Present and in vault ring
+
+### 7.9 SHARE_DISTRIBUTE (0x7D)
+
+Distribute key shares to devices.
+
+```typescript
+interface ShareDistributePayload {
+  vaultId: bytes32;
+  keyVersion: uint256;
+  encryptedShares: EncryptedShare[];
+  ownerSignature: bytes;
+}
+
+interface EncryptedShare {
+  deviceId: bytes32;
+  encryptedShare: bytes;        // ECIES encrypted to device public key
+  commitment: bytes32;          // Pedersen commitment
+}
+```
+
+**Validation Rules:**
+- Owner signature MUST be valid
+- Number of shares MUST match device ring size
+- Each device MUST be in vault ring
+
+### 7.10 SHARE_REQUEST (0x7E)
+
+Request share for key reconstruction.
+
+```typescript
+interface ShareRequestPayload {
+  vaultId: bytes32;
+  requestingDeviceId: bytes32;
+  requestNonce: bytes32;        // For response correlation
+  shareProof?: ZKShareProof;    // If required by policy
+  deviceSignature: bytes;
+}
+```
+
+**Validation Rules:**
+- Requesting device MUST be Present
+- Vault MUST be in unlock process
+
+### 7.11 SHARE_PROVIDE (0x7F)
+
+Provide share for key reconstruction.
+
+```typescript
+interface ShareProvidePayload {
+  vaultId: bytes32;
+  requestNonce: bytes32;        // Echo from request
+  providingDeviceId: bytes32;
+  encryptedShare: bytes;        // ECIES encrypted to requester
+  shareProof?: ZKShareProof;    // Prove share validity without revealing
+  deviceSignature: bytes;
+}
+
+interface ZKShareProof {
+  vaultId: bytes32;
+  shareCommitment: bytes32;
+  commitmentsRoot: bytes32;
+  epochId: uint256;
+  proof: bytes;
+}
+```
+
+**Validation Rules:**
+- Providing device MUST be Present
+- Request nonce MUST match pending request
+- Share MUST verify against commitment (or ZK proof)
+
+---
+
+## 8. Message Validation
+
+### 8.1 Common Validation
 
 All messages MUST pass:
 
@@ -718,7 +1046,7 @@ All messages MUST pass:
 8. **Nonce check**: Nonce not previously used by sender in epoch
 9. **Timestamp**: Within acceptable window (±5 minutes)
 
-### 7.2 Validation Order
+### 8.2 Validation Order
 
 ```
 1. version      → MSG_008
@@ -733,7 +1061,7 @@ All messages MUST pass:
 10. payload     → MSG_007
 ```
 
-### 7.3 Error Responses
+### 8.3 Error Responses
 
 See `errors.md v0.6.9` for error codes:
 - MSG_001: InvalidMessageType
@@ -749,9 +1077,9 @@ See `errors.md v0.6.9` for error codes:
 
 ---
 
-## 8. Invariants
+## 9. Invariants
 
-### 8.1 Message Invariants
+### 9.1 Message Invariants
 
 **INV23: Epoch-Bound Messages**
 All messages MUST reference a valid epoch with sufficient capability.
@@ -776,15 +1104,15 @@ This invariant prevents:
 - **Delayed replay**: Messages expire after block_bound, preventing replay attacks
 - **Fork attacks**: Messages signed for one fork are invalid on others
 
-### 8.2 Enforcement
+### 9.2 Enforcement
 
 See `invariants.md v0.6.9` for formal definitions.
 
 ---
 
-## 9. Security Considerations
+## 10. Security Considerations
 
-### 9.1 Replay Protection (Enhanced v0.6.9)
+### 10.1 Replay Protection (Enhanced v0.6.9)
 
 Replay attacks are prevented by multiple layers:
 - **Unique nonce** per message (INV25)
@@ -800,13 +1128,13 @@ The chain binding mechanism ensures:
 3. Old signatures become invalid automatically
 ```
 
-### 9.2 Spoofing Prevention
+### 10.2 Spoofing Prevention
 
 Sender spoofing is prevented by:
 - ECDSA signature verification
 - On-chain presence verification
 
-### 9.3 Denial of Service
+### 10.3 Denial of Service
 
 Mitigation:
 - Rate limiting per sender
@@ -815,7 +1143,7 @@ Mitigation:
 
 ---
 
-## 10. Non-Goals
+## 11. Non-Goals
 
 This specification explicitly does NOT define:
 
@@ -827,7 +1155,7 @@ This specification explicitly does NOT define:
 
 ---
 
-## 11. Backwards Compatibility
+## 12. Backwards Compatibility
 
 | Aspect | Status |
 |--------|--------|
@@ -838,7 +1166,7 @@ This specification explicitly does NOT define:
 
 ---
 
-## 12. References
+## 13. References
 
 - node-model.md v0.6 — Node structure
 - state-sync.md v0.6 — Sync protocol
@@ -849,7 +1177,7 @@ This specification explicitly does NOT define:
 
 ---
 
-## 13. Changelog
+## 14. Changelog
 
 | Version | Changes |
 |---------|---------|
@@ -860,3 +1188,4 @@ This specification explicitly does NOT define:
 | v0.6.7 | Added Octopus messages (0x60-0x65) |
 | v0.6.9 | **Security hardening**: Added chain_id, block_bound to envelope; INV43 chain binding |
 | v0.7.1 | **Device layer**: Added Device messages (0x70-0x7F) for trusted device storage |
+| v0.7.2 | **Vault layer**: Added Vault/Storage message details (VAULT_CREATE, VAULT_CONFIGURE, VAULT_UNLOCK, VAULT_LOCK, STORAGE_*, SHARE_*); ZK proof integration |

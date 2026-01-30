@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Invariants
-**Version:** v0.7.1 (consolidated INV1-65)
+**Version:** v0.7.2 (consolidated INV1-75)
 **Status:** Active
 **Scope:** Protocol-level (canonical)
 **Depends on:** All v0.7.0 specifications
@@ -39,6 +39,8 @@ implementation.
 | Governance | INV59-60 | On-chain (v0.7.0 — RFC-0004) |
 | Verification | INV61-62 | Hybrid (v0.7.0) |
 | Device | INV64-65 | Hybrid (v0.7.1) |
+| Vault | INV66-68 | Hybrid (v0.7.2 — RFC-0005) |
+| Zero-Knowledge | INV73-75 | Off-chain (v0.7.2 — RFC-0005) |
 
 ---
 
@@ -541,6 +543,112 @@ This ensures:
 - Device must be in Present state
 - Device must be bound to current epoch
 
+### 4.19 Vault Invariants (v0.7.2)
+
+**INV66: Device Ring Integrity**
+A vault's device ring MUST maintain valid threshold configuration.
+
+```
+∀ vault v:
+  v.deviceRing.threshold >= 2 ∧
+  v.deviceRing.totalDevices >= 3 ∧
+  v.deviceRing.threshold <= v.deviceRing.totalDevices ∧
+  count(v.deviceRing.devices) = v.deviceRing.totalDevices ∧
+  ∀ d ∈ v.deviceRing.devices:
+    device(d).owner = v.owner ∧
+    device(d).state ≠ Revoked
+```
+
+This ensures:
+- Minimum 2-of-3 threshold for security
+- All devices belong to vault owner
+- No revoked devices in active ring
+
+**INV67: Vault Access Threshold**
+A vault MUST be locked when present devices fall below threshold.
+
+```
+∀ vault v:
+  let presentCount = count(d ∈ v.deviceRing.devices
+    WHERE device(d).state = Present ∧
+          device(d).currentEpochId = currentEpoch)
+
+  presentCount < v.deviceRing.threshold →
+    v.accessState = Locked
+```
+
+This ensures:
+- Automatic locking when devices leave
+- Threshold enforcement in real-time
+- No access without sufficient devices present
+
+**INV68: Vault Key Isolation**
+A vault's reconstructed key MUST be zeroed when vault locks.
+
+```
+∀ vault v WHERE v.accessState transitions to Locked:
+  secureZero(v.reconstructedKey) ∧
+  v.reconstructedKey = null
+```
+
+This ensures:
+- Keys are not retained after lock
+- Memory is securely cleared
+- Forward secrecy on device departure
+
+### 4.20 Zero-Knowledge Invariants (v0.7.2)
+
+**INV73: ZK Share Proof Validity**
+When policy requires ZK share proofs, all share provisions MUST include valid proofs.
+
+```
+∀ share_provision sp WHERE sp.vault.policy.requireZKShareProof = true:
+  verify(
+    sp.zkShareProof.proof,
+    [sp.vaultId, sp.shareCommitment, sp.commitmentsRoot, sp.epochId],
+    sp.vault.zkConfig.shareVerifyingKey
+  ) = true
+```
+
+This proves:
+- Prover knows a valid Shamir share
+- Share commitment is in vault's commitment list
+- Share is bound to current epoch
+
+**INV74: ZK Presence Proof Validity**
+When policy requires ZK presence proofs, all presence claims MUST include valid proofs.
+
+```
+∀ presence_claim pc WHERE pc.vault.policy.requireZKPresenceProof = true:
+  verify(
+    pc.zkPresenceProof.proof,
+    [pc.epochId, pc.membershipRoot, pc.presenceListRoot],
+    pc.vault.zkConfig.presenceVerifyingKey
+  ) = true
+```
+
+This proves:
+- Device is member of vault's device ring
+- Device is present in current epoch
+- Merkle path is valid (without revealing which device)
+
+**INV75: ZK Access Proof Validity**
+When policy requires ZK access proofs, all storage operations MUST include valid proofs.
+
+```
+∀ access_request ar WHERE ar.vault.policy.requireZKAccessProof = true:
+  verify(
+    ar.zkAccessProof.proof,
+    [ar.vaultId, ar.accessRoot, ar.epochId, ar.accessNonce],
+    ar.vault.zkConfig.accessVerifyingKey
+  ) = true
+```
+
+This proves:
+- Item exists in vault
+- Requester has valid vault access
+- Request is bound to epoch and nonce (prevents replay)
+
 ---
 
 ## 5. Invariant Enforcement
@@ -581,6 +689,8 @@ Some data stored on-chain (hashes, attestations), with full data off-chain.
 | INV59-60 | **On-chain** | `pallet-governance` | Upgrade delays, quorums |
 | INV61-62 | **Hybrid** | Runtime + P2P | Invariant violation logging |
 | INV64-65 | **Hybrid** | `pallet-devices` → P2P | Device identity and presence binding |
+| INV66-68 | **Hybrid** | `pallet-vaults` → P2P | Vault ring integrity, access threshold, key isolation |
+| INV73-75 | **Off-chain** | P2P + ZK circuits | Zero-knowledge proof verification |
 
 ### 5.3 On-Chain Pallets
 
@@ -615,7 +725,7 @@ Some data stored on-chain (hashes, attestations), with full data off-chain.
 ## 6. Compliance
 
 An implementation is considered compliant if and only if:
-- All invariants INV1-65 hold under all conditions
+- All invariants INV1-75 hold under all conditions
 - On-chain invariants are enforced via Substrate pallets
 - Off-chain invariants validate against on-chain state
 - Hybrid invariants have on-chain anchors with off-chain execution
@@ -623,6 +733,8 @@ An implementation is considered compliant if and only if:
 - Economic invariants (INV46-49) are enforced by staking pallet
 - Recovery invariants (INV57-58) are enforced by validator pallet
 - Governance invariants (INV59-60) are enforced by governance pallet
+- Vault invariants (INV66-68) are enforced by vaults pallet with off-chain validation
+- ZK invariants (INV73-75) are enforced by off-chain proof verification
 
 ---
 
@@ -638,3 +750,4 @@ An implementation is considered compliant if and only if:
 | v0.6.9 | **Security hardening**: Added INV43 (chain binding), INV44 (key destruction), INV45 (rate limiting); Updated INV31, INV39 |
 | v0.7.0 | **Production readiness**: Added INV46-49 (validator economics — RFC-0001), INV50-53 (reputation — RFC-0002), INV54-56 (small network — RFC-0003), INV57-60 (recovery & governance — RFC-0004), INV61-62 (verification), INV63 (dynamic scaling) |
 | v0.7.1 | **Device layer**: Added INV64 (device identity derivation), INV65 (device presence binding) |
+| v0.7.2 | **Vault layer + ZK**: Added INV66-68 (vault ring integrity, access threshold, key isolation), INV73-75 (ZK share/presence/access proofs) — RFC-0005 |
