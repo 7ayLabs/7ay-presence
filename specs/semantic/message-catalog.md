@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.6.9
+**Version:** v0.7.1
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
 **Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.9
@@ -137,7 +137,25 @@ enum MessageType {
   OCTOPUS_SUBNODE = 0x62,
   OCTOPUS_COORDINATE = 0x63,
   OCTOPUS_MERGE = 0x64,
-  OCTOPUS_STATE_SHARE = 0x65
+  OCTOPUS_STATE_SHARE = 0x65,
+
+  // Device (0x70-0x7F) — v0.7.1
+  DEVICE_REGISTER = 0x70,
+  DEVICE_ENTER_EPOCH = 0x71,
+  DEVICE_LEAVE = 0x72,
+  DEVICE_REVOKE = 0x73,
+  DEVICE_RECOVER = 0x74,
+  VAULT_CREATE = 0x75,
+  VAULT_CONFIGURE = 0x76,
+  VAULT_UNLOCK = 0x77,
+  VAULT_LOCK = 0x78,
+  STORAGE_PUT = 0x79,
+  STORAGE_GET = 0x7A,
+  STORAGE_DELETE = 0x7B,
+  STORAGE_LIST = 0x7C,
+  SHARE_DISTRIBUTE = 0x7D,
+  SHARE_REQUEST = 0x7E,
+  SHARE_PROVIDE = 0x7F
 }
 ```
 
@@ -536,9 +554,157 @@ enum DisputeAction {
 
 ---
 
-## 6. Message Validation
+## 6. Device Messages (v0.7.1)
 
-### 6.1 Common Validation
+Device messages enable trusted device management for presence-based storage.
+See `devices.md` for complete device specification.
+
+### 6.1 DEVICE_REGISTER (0x70)
+
+Register a new trusted device.
+
+```typescript
+interface DeviceRegisterPayload {
+  deviceIndex: uint8;           // Unique index for this owner (0-254)
+  deviceType: DeviceType;
+  deviceName: string;           // Max 32 UTF-8 characters
+  publicKey: bytes;             // secp256k1 compressed public key (33 bytes)
+  ownerSignature: bytes;        // Owner signs: hash(deviceIndex, publicKey, epochId)
+  deviceSignature: bytes;       // Device signs: hash(owner, publicKey)
+  shareIndex: uint8;            // 1-based Shamir share index
+}
+
+enum DeviceType {
+  Mobile = 0,
+  Desktop = 1,
+  Tablet = 2,
+  Wearable = 3,
+  Hardware = 4,
+  Server = 5,
+  Browser = 6
+}
+```
+
+**Validation Rules:**
+- Sender MUST be device owner
+- Owner MUST have Validated or Finalized presence
+- `deviceIndex` MUST be unique for this owner
+- `shareIndex` MUST be unique within owner's device ring
+- Both signatures MUST be valid
+
+### 6.2 DEVICE_ENTER_EPOCH (0x71)
+
+Device declares presence in an epoch.
+
+```typescript
+interface DeviceEnterEpochPayload {
+  deviceId: bytes32;
+  epochId: uint256;
+  ownerPresenceProof: bytes;    // Signature from owner authorizing device entry
+  deviceAttestation: DeviceAttestation;
+}
+
+interface DeviceAttestation {
+  deviceId: bytes32;
+  epochId: uint256;
+  timestamp: uint256;
+  capabilities: DeviceCapability[];
+  deviceSignature: bytes;
+}
+
+enum DeviceCapability {
+  ShareStorage = 0,
+  ShareProvide = 1,
+  StorageAccess = 2,
+  OfflineCache = 3
+}
+```
+
+**Validation Rules:**
+- Device MUST be in state: Registered, Absent, or Inactive
+- Owner MUST have valid presence in target epoch
+- Epoch MUST be Active
+
+### 6.3 DEVICE_LEAVE (0x72)
+
+Device voluntarily leaves the current epoch.
+
+```typescript
+interface DeviceLeavePayload {
+  deviceId: bytes32;
+  epochId: uint256;
+  reason: LeaveReason;
+  deviceSignature?: bytes;      // Device self-signs leave
+  ownerSignature?: bytes;       // Owner forces device leave
+  shareDestroyed: bool;
+  destructionAttestation?: bytes;
+}
+
+enum LeaveReason {
+  Voluntary = 0,
+  Timeout = 1,
+  OwnerForced = 2,
+  NetworkError = 3
+}
+```
+
+**Validation Rules:**
+- Device MUST be in Present state
+- Either device or owner signature MUST be valid
+
+### 6.4 DEVICE_REVOKE (0x73)
+
+Permanently revoke a device (terminal state).
+
+```typescript
+interface DeviceRevokePayload {
+  deviceId: bytes32;
+  ownerSignature: bytes;
+  reason: RevokeReason;
+  shareDestroyedAttestation?: bytes;
+}
+
+enum RevokeReason {
+  UserInitiated = 0,
+  Compromised = 1,
+  Lost = 2,
+  Replaced = 3
+}
+```
+
+**Validation Rules:**
+- Owner signature MUST be valid
+- Device MUST NOT already be Revoked
+
+### 6.5 DEVICE_RECOVER (0x74)
+
+Initiate recovery for a lost device.
+
+```typescript
+interface DeviceRecoverPayload {
+  deviceId: bytes32;
+  newPublicKey: bytes;
+  ownerSignature: bytes;
+  deviceAttestations?: DeviceRecoveryAttestation[];
+}
+
+interface DeviceRecoveryAttestation {
+  attestingDeviceId: bytes32;
+  targetDeviceId: bytes32;
+  approves: bool;
+  signature: bytes;
+}
+```
+
+**Validation Rules:**
+- Device MUST be in Lost state
+- Owner signature MUST be valid
+
+---
+
+## 7. Message Validation
+
+### 7.1 Common Validation
 
 All messages MUST pass:
 
@@ -552,7 +718,7 @@ All messages MUST pass:
 8. **Nonce check**: Nonce not previously used by sender in epoch
 9. **Timestamp**: Within acceptable window (±5 minutes)
 
-### 6.2 Validation Order
+### 7.2 Validation Order
 
 ```
 1. version      → MSG_008
@@ -567,7 +733,7 @@ All messages MUST pass:
 10. payload     → MSG_007
 ```
 
-### 6.3 Error Responses
+### 7.3 Error Responses
 
 See `errors.md v0.6.9` for error codes:
 - MSG_001: InvalidMessageType
@@ -583,9 +749,9 @@ See `errors.md v0.6.9` for error codes:
 
 ---
 
-## 7. Invariants
+## 8. Invariants
 
-### 7.1 Message Invariants
+### 8.1 Message Invariants
 
 **INV23: Epoch-Bound Messages**
 All messages MUST reference a valid epoch with sufficient capability.
@@ -610,15 +776,15 @@ This invariant prevents:
 - **Delayed replay**: Messages expire after block_bound, preventing replay attacks
 - **Fork attacks**: Messages signed for one fork are invalid on others
 
-### 7.2 Enforcement
+### 8.2 Enforcement
 
 See `invariants.md v0.6.9` for formal definitions.
 
 ---
 
-## 8. Security Considerations
+## 9. Security Considerations
 
-### 8.1 Replay Protection (Enhanced v0.6.9)
+### 9.1 Replay Protection (Enhanced v0.6.9)
 
 Replay attacks are prevented by multiple layers:
 - **Unique nonce** per message (INV25)
@@ -634,13 +800,13 @@ The chain binding mechanism ensures:
 3. Old signatures become invalid automatically
 ```
 
-### 8.2 Spoofing Prevention
+### 9.2 Spoofing Prevention
 
 Sender spoofing is prevented by:
 - ECDSA signature verification
 - On-chain presence verification
 
-### 8.3 Denial of Service
+### 9.3 Denial of Service
 
 Mitigation:
 - Rate limiting per sender
@@ -649,7 +815,7 @@ Mitigation:
 
 ---
 
-## 9. Non-Goals
+## 10. Non-Goals
 
 This specification explicitly does NOT define:
 
@@ -661,7 +827,7 @@ This specification explicitly does NOT define:
 
 ---
 
-## 10. Backwards Compatibility
+## 11. Backwards Compatibility
 
 | Aspect | Status |
 |--------|--------|
@@ -672,7 +838,7 @@ This specification explicitly does NOT define:
 
 ---
 
-## 11. References
+## 12. References
 
 - node-model.md v0.6 — Node structure
 - state-sync.md v0.6 — Sync protocol
@@ -683,7 +849,7 @@ This specification explicitly does NOT define:
 
 ---
 
-## 12. Changelog
+## 13. Changelog
 
 | Version | Changes |
 |---------|---------|
@@ -693,3 +859,4 @@ This specification explicitly does NOT define:
 | v0.6.6 | Added Autonomous messages (0x50-0x54) |
 | v0.6.7 | Added Octopus messages (0x60-0x65) |
 | v0.6.9 | **Security hardening**: Added chain_id, block_bound to envelope; INV43 chain binding |
+| v0.7.1 | **Device layer**: Added Device messages (0x70-0x7F) for trusted device storage |

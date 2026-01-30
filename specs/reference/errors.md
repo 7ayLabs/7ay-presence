@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Errors
-**Version:** v0.7.0 (consolidated from v0.4-v0.7.0)
+**Version:** v0.7.1 (consolidated from v0.4-v0.7.1)
 **Status:** Active
 
 > Includes on-chain errors (v0.4-v0.5, v0.7.0) and off-chain semantic layer errors (v0.6-v0.7.0)
@@ -32,6 +32,8 @@ On-chain errors from v0.5 and earlier remain unchanged.
 | Staking | On-chain | New in v0.7.0 (RFC-0001) |
 | Recovery | On-chain | New in v0.7.0 (RFC-0004) |
 | Upgrades | On-chain | New in v0.7.0 (RFC-0004) |
+| Device | Off-chain | New in v0.7.1 |
+| Storage | Off-chain | New in v0.7.1 |
 
 ---
 
@@ -60,7 +62,9 @@ enum ErrorCategory {
   KEY_MANAGEMENT = "KEY_MANAGEMENT",
   STAKING = "STAKING",
   RECOVERY = "RECOVERY",
-  UPGRADES = "UPGRADES"
+  UPGRADES = "UPGRADES",
+  DEVICE = "DEVICE",
+  STORAGE = "STORAGE"
 }
 ```
 
@@ -437,6 +441,128 @@ enum ErrorCategory {
 
 ---
 
+## Device Errors (v0.7.1)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| STOR_001 | DeviceNotRegistered | Device ID not found in registry | - |
+| STOR_002 | DeviceAlreadyRegistered | Device index already used by owner | - |
+| STOR_003 | DeviceNotPresent | Device lacks presence in current epoch | INV65 |
+| STOR_004 | DeviceRevoked | Device permanently revoked | - |
+| STOR_005 | DeviceLost | Device marked as lost | - |
+| STOR_009 | InsufficientDevices | Not enough devices for threshold | INV66 |
+| STOR_020 | UnauthorizedDevice | Device not in vault's ring | INV65 |
+
+### STOR_001: DeviceNotRegistered
+```typescript
+{
+  code: "STOR_001",
+  category: "DEVICE",
+  message: "Device ID not found in registry",
+  context: {
+    deviceId: "0x1234...",
+    owner: "0xabcd..."
+  }
+}
+```
+
+### STOR_003: DeviceNotPresent
+```typescript
+{
+  code: "STOR_003",
+  category: "DEVICE",
+  message: "Device lacks presence in current epoch",
+  context: {
+    deviceId: "0x1234...",
+    owner: "0xabcd...",
+    epochId: 42,
+    deviceState: "Inactive",
+    ownerPresence: "Validated"
+  }
+}
+```
+
+### STOR_004: DeviceRevoked
+```typescript
+{
+  code: "STOR_004",
+  category: "DEVICE",
+  message: "Device has been permanently revoked",
+  context: {
+    deviceId: "0x1234...",
+    owner: "0xabcd...",
+    revokedAt: 1705000000,
+    reason: "Compromised"
+  }
+}
+```
+
+---
+
+## Storage Errors (v0.7.1)
+
+| Code | Name | Condition | Invariant |
+|------|------|-----------|-----------|
+| STOR_006 | VaultNotFound | Vault ID not found | - |
+| STOR_007 | VaultLocked | Vault access state is Locked | INV67 |
+| STOR_008 | VaultSuspended | Vault suspended by owner | - |
+| STOR_010 | ThresholdNotMet | Present devices below threshold | INV67 |
+| STOR_011 | ShareAlreadyProvided | Device already provided share | - |
+| STOR_012 | InvalidShare | Share verification failed | - |
+| STOR_013 | ShareMismatch | Share index doesn't match device | INV69 |
+| STOR_014 | StorageQuotaExceeded | Vault storage limit reached | - |
+| STOR_015 | ItemNotFound | Storage item not found | - |
+| STOR_016 | ItemTooLarge | Item exceeds max size | - |
+| STOR_017 | InvalidMediaType | Media type not allowed by policy | - |
+| STOR_018 | KeyVersionMismatch | Item encrypted with old key | INV70 |
+| STOR_019 | IntegrityCheckFailed | Content hash mismatch | INV72 |
+
+### STOR_007: VaultLocked
+```typescript
+{
+  code: "STOR_007",
+  category: "STORAGE",
+  message: "Vault access state is Locked - insufficient devices present",
+  context: {
+    vaultId: "0x1234...",
+    presentDevices: 2,
+    threshold: 3,
+    accessState: "Locked"
+  }
+}
+```
+
+### STOR_010: ThresholdNotMet
+```typescript
+{
+  code: "STOR_010",
+  category: "STORAGE",
+  message: "Present devices below unlock threshold",
+  context: {
+    vaultId: "0x1234...",
+    presentDevices: 1,
+    threshold: 2,
+    totalDevices: 3
+  }
+}
+```
+
+### STOR_019: IntegrityCheckFailed
+```typescript
+{
+  code: "STOR_019",
+  category: "STORAGE",
+  message: "Content hash does not match stored hash",
+  context: {
+    itemId: "0x1234...",
+    expectedHash: "0xabcd...",
+    actualHash: "0xef01..."
+  }
+}
+```
+
+---
+
 ## Recovery Actions
 
 | Error Category | Recovery |
@@ -453,6 +579,8 @@ enum ErrorCategory {
 | STK_* | Adjust stake amount, wait for cooldown |
 | REC_* | Wait for voting, ensure proper status |
 | UPG_* | Wait for delay, ensure proper quorum |
+| STOR_001-005 | Check device registration, recover lost device, re-register |
+| STOR_006-019 | Unlock vault, wait for devices, retry operation |
 
 ---
 
@@ -467,3 +595,4 @@ enum ErrorCategory {
 | v0.6.7 | Added OCTO_001-006 for octopus scaling |
 | v0.6.9 | **Security hardening**: Added MSG_009-010 (chain binding), DISC_010-011 (rate limiting), KEY_001-004 (key management), OCTO_007 (VRF verification) |
 | v0.7.0 | **Production readiness**: Added STK_001-007 (staking), REC_001-006 (recovery), UPG_001-007 (upgrades), AUTO_010-013 (reputation), BOOM_006-009 (small network), OCTO_008-009 (dynamic scaling) |
+| v0.7.1 | **Device layer**: Added STOR_001-020 (device and storage errors) |

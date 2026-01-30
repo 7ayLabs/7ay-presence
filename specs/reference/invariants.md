@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Invariants
-**Version:** v0.7.0 (consolidated INV1-63)
+**Version:** v0.7.1 (consolidated INV1-65)
 **Status:** Active
 **Scope:** Protocol-level (canonical)
 **Depends on:** All v0.7.0 specifications
@@ -38,6 +38,7 @@ implementation.
 | Recovery | INV57-58 | On-chain (v0.7.0 — RFC-0004) |
 | Governance | INV59-60 | On-chain (v0.7.0 — RFC-0004) |
 | Verification | INV61-62 | Hybrid (v0.7.0) |
+| Device | INV64-65 | Hybrid (v0.7.1) |
 
 ---
 
@@ -502,6 +503,44 @@ Examples:
 
 This replaces the fixed limit of 4 from INV40.
 
+### 4.18 Device Invariants (v0.7.1)
+
+**INV64: Device Identity Derivation**
+Device identity MUST be derivable from owner, index, and epoch randomness.
+
+```
+∀ device d:
+  d.deviceId = keccak256(
+    "7ay-device-v1",
+    d.owner,
+    d.deviceIndex,
+    d.registrationEpochId,
+    epochRandomness(d.registrationEpochId)
+  )
+```
+
+This ensures:
+- **Uniqueness**: Same owner + index + epoch = same deviceId
+- **Unpredictability**: Cannot pre-compute deviceId before epoch randomness revealed
+- **Verifiability**: Anyone can verify deviceId given inputs
+- **Non-transferability**: DeviceId bound to owner address
+
+**INV65: Device Presence Binding**
+A device MUST have valid presence to participate in vault operations.
+
+```
+∀ device d, operation o:
+  o.requiresPresence = true →
+    presenceState(d.owner, currentEpoch) ∈ {Declared, Validated, Finalized} ∧
+    d.state = DeviceState.Present ∧
+    d.currentEpochId = currentEpoch
+```
+
+This ensures:
+- Device operations require owner's active presence
+- Device must be in Present state
+- Device must be bound to current epoch
+
 ---
 
 ## 5. Invariant Enforcement
@@ -541,6 +580,7 @@ Some data stored on-chain (hashes, attestations), with full data off-chain.
 | INV57-58 | **On-chain** | `pallet-validators` | Recovery process, cooldowns |
 | INV59-60 | **On-chain** | `pallet-governance` | Upgrade delays, quorums |
 | INV61-62 | **Hybrid** | Runtime + P2P | Invariant violation logging |
+| INV64-65 | **Hybrid** | `pallet-devices` → P2P | Device identity and presence binding |
 
 ### 5.3 On-Chain Pallets
 
@@ -575,7 +615,7 @@ Some data stored on-chain (hashes, attestations), with full data off-chain.
 ## 6. Compliance
 
 An implementation is considered compliant if and only if:
-- All invariants INV1-63 hold under all conditions
+- All invariants INV1-65 hold under all conditions
 - On-chain invariants are enforced via Substrate pallets
 - Off-chain invariants validate against on-chain state
 - Hybrid invariants have on-chain anchors with off-chain execution
@@ -597,3 +637,4 @@ An implementation is considered compliant if and only if:
 | v0.6.7 | Added INV38-42 for octopus |
 | v0.6.9 | **Security hardening**: Added INV43 (chain binding), INV44 (key destruction), INV45 (rate limiting); Updated INV31, INV39 |
 | v0.7.0 | **Production readiness**: Added INV46-49 (validator economics — RFC-0001), INV50-53 (reputation — RFC-0002), INV54-56 (small network — RFC-0003), INV57-60 (recovery & governance — RFC-0004), INV61-62 (verification), INV63 (dynamic scaling) |
+| v0.7.1 | **Device layer**: Added INV64 (device identity derivation), INV65 (device presence binding) |

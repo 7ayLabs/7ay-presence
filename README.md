@@ -1,7 +1,7 @@
 # 7ay Presence Protocol
 
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](https://mariadb.com/bsl11/)
-[![Version](https://img.shields.io/badge/Version-0.7.0-green.svg)](specs/README.md)
+[![Version](https://img.shields.io/badge/Version-0.7.1-green.svg)](specs/README.md)
 
 Canonical specification for the 7ay Proof of Presence (PoP) Protocol.
 
@@ -9,7 +9,7 @@ This repository contains protocol specifications, governance processes, and refe
 
 ## Current Version
 
-**v0.7.0** — Production Readiness Release
+**v0.7.1** — Device Layer for Presence-Based Storage
 
 | Layer | Versions | Scope |
 |-------|----------|-------|
@@ -17,7 +17,7 @@ This repository contains protocol specifications, governance processes, and refe
 | Epoch | v0.2 | Lifecycle, temporal boundaries |
 | Governance | v0.5, v0.6.9, v0.7.0 | Ephemeral data, capabilities, policies, key management, trust model |
 | Semantic | v0.6.0-0.3, v0.6.9 | Node discovery, messaging, state sync, rate limiting |
-| Extensions | v0.6.4-v0.7.0 | Media, boomerang, autonomous, octopus, dynamic scaling |
+| Extensions | v0.6.4-v0.7.1 | Media, boomerang, autonomous, octopus, dynamic scaling, devices |
 | Security | v0.6.9, v0.7.0 | Chain binding, key destruction, rate limiting |
 | Economics | v0.7.0 | Validator staking, slashing, stake concentration |
 | Recovery | v0.7.0 | Validator recovery, protocol upgrades |
@@ -62,6 +62,7 @@ This repository contains protocol specifications, governance processes, and refe
 | [boomerang.md](specs/extensions/boomerang.md) | v0.7.0 | Return path verification, small network fallback |
 | [autonomous.md](specs/extensions/autonomous.md) | v0.7.0 | Pattern-based execution, progressive reputation |
 | [octopus.md](specs/extensions/octopus.md) | v0.7.0 | Dynamic node scaling, dynamic sub-node limits |
+| [devices.md](specs/extensions/devices.md) | v0.7.1 | Trusted device registration, presence binding |
 
 ### Reference
 
@@ -85,7 +86,7 @@ This repository contains protocol specifications, governance processes, and refe
 
 ## Protocol Invariants
 
-The protocol defines 63 invariants across twelve categories:
+The protocol defines 65 invariants across thirteen categories:
 
 | Category | Range | Scope |
 |----------|-------|-------|
@@ -101,6 +102,7 @@ The protocol defines 63 invariants across twelve categories:
 | Recovery | INV57-58 | Recovery quorum, cooldowns |
 | Governance | INV59-60 | Upgrade delays, emergency quorum |
 | Verification | INV61-62 | Invariant violation logging |
+| Device | INV64-65 | Device identity derivation, presence binding |
 
 ## Implementation
 
