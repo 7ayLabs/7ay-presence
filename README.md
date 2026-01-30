@@ -119,7 +119,7 @@ Total: 78 invariants (INV1-78).
 
 ## Implementation
 
-Reference implementation: [github.com/7ayLabs/7ay-chain](https://github.com/7ayLabs/7ay-chain) (Rust/Substrate)
+Reference implementation: [github.com/7ayLabs/7ay-chain](https://github.com/7ayLabs/7aychain) (Rust/Substrate)
 
 Solidity reference implementation preserved at tag `v0.6.7-solidity-final` and branch `archive/v0.6.7-solidity-reference`.
 
