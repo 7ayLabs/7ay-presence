@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Message Catalog
-**Version:** v0.7.2
+**Version:** v0.7.3
 **Status:** Draft
 **Scope:** Protocol-level (semantic layer)
 **Depends on:** node-model.md v0.6.2, state-sync.md v0.6.1, invariants.md v0.6.9
@@ -960,73 +960,142 @@ interface Pagination {
 
 ### 7.9 SHARE_DISTRIBUTE (0x7D)
 
-Distribute key shares to devices.
+Distribute Shamir key shares to devices after vault creation or key rotation.
+See `crypto.md` for detailed cryptographic specification.
 
 ```typescript
 interface ShareDistributePayload {
+  // Vault context
   vaultId: bytes32;
-  keyVersion: uint256;
-  encryptedShares: EncryptedShare[];
+  keyVersion: uint256;          // Increments on each rotation
+
+  // Encrypted shares (one per device)
+  encryptedShares: EncryptedDeviceShare[];
+
+  // Verification commitments
+  shareCommitments: bytes32[];  // Pedersen commitments for each share
+
+  // Feldman VSS (optional, for verifiable sharing)
+  feldmanCommitments?: bytes[]; // g^a₀, g^a₁, ..., g^aₖ₋₁
+
+  // Authorization
   ownerSignature: bytes;
 }
 
-interface EncryptedShare {
+interface EncryptedDeviceShare {
   deviceId: bytes32;
-  encryptedShare: bytes;        // ECIES encrypted to device public key
-  commitment: bytes32;          // Pedersen commitment
+  shareIndex: uint8;            // 1-based Shamir index
+  encryptedShare: ECIESCiphertext;
+}
+
+interface ECIESCiphertext {
+  ephemeralPublicKey: bytes;    // 33 bytes (compressed secp256k1)
+  iv: bytes;                    // 16 bytes (AES-GCM nonce)
+  ciphertext: bytes;            // Encrypted share value
+  authTag: bytes;               // 16 bytes (GCM authentication tag)
 }
 ```
 
-**Validation Rules:**
+**Validation Rules (INV69):**
 - Owner signature MUST be valid
-- Number of shares MUST match device ring size
-- Each device MUST be in vault ring
+- Number of shares MUST equal device ring size
+- Each device MUST receive exactly one share
+- Share indices MUST be unique and sequential (1 to n)
+- Pedersen commitments MUST be provided for each share
+- If Feldman provided: commitment count MUST equal threshold
 
 ### 7.10 SHARE_REQUEST (0x7E)
 
-Request share for key reconstruction.
+Request shares from other devices to reconstruct vault key.
+See `crypto.md` for key reconstruction protocol.
 
 ```typescript
 interface ShareRequestPayload {
+  // Vault context
   vaultId: bytes32;
+  keyVersion: uint256;          // Must match current key version
+
+  // Request metadata
   requestingDeviceId: bytes32;
-  requestNonce: bytes32;        // For response correlation
-  shareProof?: ZKShareProof;    // If required by policy
+  requestNonce: bytes32;        // Unique per request (prevents replay)
+  requestTimestamp: uint256;
+
+  // Ephemeral key for response encryption
+  responsePublicKey: bytes;     // secp256k1 compressed (33 bytes)
+                                // Providers will ECIES encrypt to this key
+
+  // ZK proof of presence (if required by policy)
+  presenceProof?: ZKPresenceProof;
+
+  // Device signature
   deviceSignature: bytes;
 }
 ```
 
 **Validation Rules:**
-- Requesting device MUST be Present
-- Vault MUST be in unlock process
+- Requesting device MUST be Present in current epoch
+- Requesting device MUST be in vault's device ring
+- Request nonce MUST be unique (prevents replay)
+- Key version MUST match vault's current key version
+- If policy requires: ZK presence proof MUST verify
+
+**Protocol Flow:**
+1. Requester broadcasts SHARE_REQUEST to all ring devices
+2. Present devices respond with SHARE_PROVIDE
+3. Requester collects ≥ threshold shares
+4. Requester reconstructs key via Lagrange interpolation
 
 ### 7.11 SHARE_PROVIDE (0x7F)
 
-Provide share for key reconstruction.
+Provide encrypted share in response to SHARE_REQUEST.
+See `crypto.md` for ECIES encryption and Feldman verification.
 
 ```typescript
 interface ShareProvidePayload {
+  // Request correlation
   vaultId: bytes32;
-  requestNonce: bytes32;        // Echo from request
+  requestNonce: bytes32;        // Echo from SHARE_REQUEST
+
+  // Provider identification
   providingDeviceId: bytes32;
-  encryptedShare: bytes;        // ECIES encrypted to requester
-  shareProof?: ZKShareProof;    // Prove share validity without revealing
+  shareIndex: uint8;            // 1-based Shamir index
+
+  // Encrypted share (to requester's ephemeral key)
+  encryptedShare: ECIESCiphertext;
+
+  // Verification data
+  shareCommitment: bytes32;     // Pedersen commitment (for verification)
+  blindingFactor?: bytes32;     // Optional: reveal blinding for direct verification
+
+  // ZK proof (if required by policy)
+  shareProof?: ZKShareProof;
+
+  // Device signature
   deviceSignature: bytes;
 }
 
 interface ZKShareProof {
   vaultId: bytes32;
   shareCommitment: bytes32;
-  commitmentsRoot: bytes32;
+  commitmentsRoot: bytes32;     // Merkle root of all share commitments
   epochId: uint256;
-  proof: bytes;
+  proof: bytes;                 // Groth16/PLONK/STARK proof
 }
 ```
 
 **Validation Rules:**
-- Providing device MUST be Present
-- Request nonce MUST match pending request
-- Share MUST verify against commitment (or ZK proof)
+- Providing device MUST be Present in current epoch
+- Providing device MUST be in vault's device ring
+- Request nonce MUST match a pending SHARE_REQUEST
+- Share MUST verify against Pedersen commitment
+- If Feldman available: share MUST verify against polynomial commitments
+- If policy requires: ZK share proof MUST verify
+- Each device provides share ONLY ONCE per request nonce
+
+**Security Properties:**
+- Share encrypted to requester's ephemeral key (forward secrecy)
+- Commitment verification prevents malicious share injection
+- ZK proof option hides which device provided the share
 
 ---
 
@@ -1189,3 +1258,4 @@ This specification explicitly does NOT define:
 | v0.6.9 | **Security hardening**: Added chain_id, block_bound to envelope; INV43 chain binding |
 | v0.7.1 | **Device layer**: Added Device messages (0x70-0x7F) for trusted device storage |
 | v0.7.2 | **Vault layer**: Added Vault/Storage message details (VAULT_CREATE, VAULT_CONFIGURE, VAULT_UNLOCK, VAULT_LOCK, STORAGE_*, SHARE_*); ZK proof integration |
+| v0.7.3 | **Cryptographic layer**: Enhanced SHARE_DISTRIBUTE/REQUEST/PROVIDE with ECIES ciphertext structure, Feldman VSS, key version tracking |

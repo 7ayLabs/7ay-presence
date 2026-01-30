@@ -1,6 +1,6 @@
 # 7ay Proof of Presence (PoP)
 ## Protocol Specification — Invariants
-**Version:** v0.7.2 (consolidated INV1-75)
+**Version:** v0.7.3 (consolidated INV1-75)
 **Status:** Active
 **Scope:** Protocol-level (canonical)
 **Depends on:** All v0.7.0 specifications
@@ -40,6 +40,7 @@ implementation.
 | Verification | INV61-62 | Hybrid (v0.7.0) |
 | Device | INV64-65 | Hybrid (v0.7.1) |
 | Vault | INV66-68 | Hybrid (v0.7.2 — RFC-0005) |
+| Cryptographic | INV69 | Off-chain (v0.7.3 — RFC-0005) |
 | Zero-Knowledge | INV73-75 | Off-chain (v0.7.2 — RFC-0005) |
 
 ---
@@ -596,7 +597,28 @@ This ensures:
 - Memory is securely cleared
 - Forward secrecy on device departure
 
-### 4.20 Zero-Knowledge Invariants (v0.7.2)
+### 4.20 Cryptographic Invariants (v0.7.3)
+
+**INV69: Share Distribution Validity**
+Each device in a vault's ring MUST hold exactly one unique share.
+
+```
+∀ vault v:
+  count(v.distributedShares) = v.deviceRing.totalDevices ∧
+  ∀ share s ∈ v.distributedShares:
+    s.shareIndex ∈ {1, 2, ..., v.deviceRing.totalDevices} ∧
+    s.deviceId ∈ v.deviceRing.devices ∧
+    isUnique(s.shareIndex) ∧
+    isUnique(s.deviceId)
+```
+
+This ensures:
+- Every device receives exactly one share
+- Share indices are unique and sequential
+- No device is skipped or receives multiple shares
+- Shamir reconstruction will work correctly
+
+### 4.21 Zero-Knowledge Invariants (v0.7.2)
 
 **INV73: ZK Share Proof Validity**
 When policy requires ZK share proofs, all share provisions MUST include valid proofs.
@@ -690,6 +712,7 @@ Some data stored on-chain (hashes, attestations), with full data off-chain.
 | INV61-62 | **Hybrid** | Runtime + P2P | Invariant violation logging |
 | INV64-65 | **Hybrid** | `pallet-devices` → P2P | Device identity and presence binding |
 | INV66-68 | **Hybrid** | `pallet-vaults` → P2P | Vault ring integrity, access threshold, key isolation |
+| INV69 | **Off-chain** | P2P crypto layer | Share distribution validity |
 | INV73-75 | **Off-chain** | P2P + ZK circuits | Zero-knowledge proof verification |
 
 ### 5.3 On-Chain Pallets
@@ -751,3 +774,4 @@ An implementation is considered compliant if and only if:
 | v0.7.0 | **Production readiness**: Added INV46-49 (validator economics — RFC-0001), INV50-53 (reputation — RFC-0002), INV54-56 (small network — RFC-0003), INV57-60 (recovery & governance — RFC-0004), INV61-62 (verification), INV63 (dynamic scaling) |
 | v0.7.1 | **Device layer**: Added INV64 (device identity derivation), INV65 (device presence binding) |
 | v0.7.2 | **Vault layer + ZK**: Added INV66-68 (vault ring integrity, access threshold, key isolation), INV73-75 (ZK share/presence/access proofs) — RFC-0005 |
+| v0.7.3 | **Cryptographic layer**: Added INV69 (share distribution validity) — RFC-0005 |
